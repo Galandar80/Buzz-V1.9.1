@@ -89,6 +89,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
 
   // Stato per forzare il re-render quando i playedSongs cambiano
   const [playedSongsVersion, setPlayedSongsVersion] = useState(0);
+  
+  // Stato locale per i brani appena utilizzati (prima della sincronizzazione Firebase)
+  const [localPlayedSongs, setLocalPlayedSongs] = useState<string[]>([]);
 
   const leftTbodyRef = useRef<HTMLTableSectionElement>(null);
   const rightTbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -285,7 +288,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       
       // Aggiungi la canzone ai brani riprodotti
       if (roomCode) {
-        addPlayedSong(roomCode, file.name).catch(console.error);
+        // Prima aggiorna immediatamente lo stato locale per forzare il re-render
+        console.log('🎵 Forzando re-render per brano utilizzato:', file.name);
+        setLocalPlayedSongs(prev => prev.includes(file.name) ? prev : [...prev, file.name]);
+        setPlayedSongsVersion(prev => prev + 1);
+        
+        // Poi aggiorna Firebase
+        addPlayedSong(roomCode, file.name).then(() => {
+          console.log('🎵 Brano aggiunto a Firebase:', file.name);
+          // Forza un altro re-render dopo l'aggiornamento Firebase
+          setPlayedSongsVersion(prev => prev + 1);
+        }).catch(console.error);
       }
       
       if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
@@ -609,14 +622,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   };
 
   const isSongPlayed = (songName: string) => {
-    const isPlayed = roomData?.playedSongs?.includes(songName) || false;
+    // Controlla sia lo stato Firebase che quello locale per garantire che l'evidenziazione sia immediata
+    const isPlayedInFirebase = roomData?.playedSongs?.includes(songName) || false;
+    const isPlayedLocally = localPlayedSongs.includes(songName);
+    const isPlayed = isPlayedInFirebase || isPlayedLocally;
     
     // Debug logging per verificare il problema
     if (songName === 'Acchiappa Fantasmi.mp3' || songName === 'Adventure Time.mp3') {
       console.log('🔍 Debug isSongPlayed:', {
         songName,
         isPlayed,
+        isPlayedInFirebase,
+        isPlayedLocally,
         playedSongs: roomData?.playedSongs,
+        localPlayedSongs,
         roomDataExists: !!roomData,
         version: playedSongsVersion
       });
@@ -661,6 +680,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       await update(ref(database, `rooms/${roomCode}`), {
         playedSongs: []
       });
+      
+      // Reset anche dello stato locale
+      setLocalPlayedSongs([]);
       
       toast.success('Lista brani utilizzati resettata!', {
         description: 'Tutti i brani sono ora disponibili per essere utilizzati nuovamente'
@@ -1015,9 +1037,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 disabled={!currentAudio}
               >
                 {currentAudio && !currentAudio.paused ? (
-                  <Pause className="w-6 h-6 text-white" />
+                  <Pause size={20} className="text-white" />
                 ) : (
-                  <Play className="w-6 h-6 text-white" />
+                  <Play size={20} className="text-white" />
                 )}
               </button>
 
@@ -1047,12 +1069,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
             <div className="flex items-center justify-center gap-4 flex-1">
               {isRemotePlaying ? (
                 <div className="flex items-center gap-2 text-white">
-                  <Play className="w-6 h-6 text-green-400 animate-pulse" />
+                  <Play size={20} className="text-green-400 animate-pulse" />
                   <span>Audio in riproduzione dal padrone della stanza</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-white/60">
-                  <Pause className="w-6 h-6" />
+                  <Pause size={20} className="text-white" />
                   <span>Nessun audio in riproduzione</span>
                 </div>
               )}
@@ -1066,7 +1088,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 className="p-2 hover:bg-red-500/20 rounded-full transition-colors group"
                 title="Reset completo del player audio"
               >
-                <RotateCcw className="w-6 h-6 text-red-400 group-hover:text-red-300 transition-colors" />
+                <RotateCcw size={20} className="text-red-400 group-hover:text-red-300 transition-colors" />
               </button>
             )}
 
@@ -1076,9 +1098,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
               disabled={!currentAudio}
             >
               {isMuted ? (
-                <VolumeX className="w-6 h-6 text-white" />
+                <VolumeX size={20} className="text-white" />
               ) : (
-                <Volume2 className="w-6 h-6 text-white" />
+                <Volume2 size={20} className="text-white" />
               )}
             </button>
 
