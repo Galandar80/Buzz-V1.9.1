@@ -1197,40 +1197,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
               </div>
             </div>
           </div>
-
-          {/* Pannello riepilogo ULTRA-ROBUSTO */}
-          {usedSongsCache.size > 0 && (
-            <div className="mt-6 bg-red-700/30 border-2 border-red-300/70 rounded-lg p-4">
-              <h4 className="text-lg font-bold text-red-100 mb-3 flex items-center gap-2">
-                🎵 Brani già utilizzati ({usedSongsCache.size})
-                <span className="text-xs bg-red-800/50 px-2 py-1 rounded border">
-                  FB: {roomData?.playedSongs?.length || 0} | LS: {(() => {
-                    try {
-                      const saved = localStorage.getItem(STORAGE_KEY);
-                      return saved ? JSON.parse(saved).length : 0;
-                    } catch { return 0; }
-                  })()}
-                </span>
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {Array.from(usedSongsCache).map((songName, index) => (
-                  <div 
-                    key={`ultra-used-${index}-${rerenderCounter}-${songName}`}
-                    className="bg-red-700/40 text-red-50 px-3 py-2 rounded-lg text-sm flex items-center gap-2 border border-red-300/60"
-                  >
-                    <span className="text-red-100 font-bold">✓</span>
-                    <span className="truncate" title={songName}>{songName}</span>
-                    <span className="text-xs text-red-200/70">
-                      {roomData?.playedSongs?.includes(songName) ? '🔗' : '💾'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 text-xs text-red-100/80">
-                💾 Sistema ultra-robusto attivo: Firebase (🔗) + LocalStorage (💾) = Persistenza garantita al 100%
-              </div>
-            </div>
-          )}
         </div>
       )}
 
