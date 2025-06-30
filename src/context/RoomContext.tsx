@@ -280,19 +280,19 @@ function RoomProvider({ children }: { children: ReactNode }) {
 
   // Gestione eventi automatici del buzz per le canzoni
   useEffect(() => {
+    // Ascolta eventi di controllo del buzz
     const handleEnableBuzzForSong = () => {
       if (isHost && roomCode) {
-        enableBuzz();
+        enableBuzz().catch(console.error);
       }
     };
 
     const handleDisableBuzzForSong = () => {
       if (isHost && roomCode) {
-        disableBuzz();
+        disableBuzz().catch(console.error);
       }
     };
 
-    // Ascolta gli eventi dal player audio
     window.addEventListener('enableBuzzForSong', handleEnableBuzzForSong);
     window.addEventListener('disableBuzzForSong', handleDisableBuzzForSong);
 
@@ -743,39 +743,40 @@ function RoomProvider({ children }: { children: ReactNode }) {
 
   // Funzione per impostare la modalità di gioco
   const setGameMode = async (mode: GameMode) => {
-    if (!roomCode || !isHost) return;
+    if (!roomCode || !playerId || !isHost) return;
     
     try {
-      const updateData: any = {
-        gameMode: mode,
-        lastBuzzActivity: Date.now()
+      const roomRef = dbRef(database, `rooms/${roomCode}`);
+      const updates: Record<string, unknown> = {
+        gameMode: mode
       };
-
-      // Se è modalità A Turni, inizializza l'ordine dei turni
-      if (mode.type === 'turnBased') {
-        const nonHostPlayers = playersList.filter(p => !p.isHost);
-        
-        if (nonHostPlayers.length > 0) {
-          // Inizializza il turno per il primo giocatore
-          updateData.currentTurn = {
-            playerId: '',
-            playerName: '',
-            turnNumber: 0,
-            startTime: 0,
-            advantagePhase: false,
-            // Aggiungo l'ordine dei turni per sincronizzazione
-            turnOrder: nonHostPlayers.map(p => ({ id: p.id, name: p.name })),
-            nextPlayerIndex: 0
-          };
-          
-          console.log('🎵 Modalità A Turni selezionata - Ordine turni inizializzato:', updateData.currentTurn.turnOrder);
-        }
-      } else {
-        // Se non è modalità A Turni, rimuovi le informazioni sui turni
-        updateData.currentTurn = null;
+      
+      // Resetta stato del gioco per nuova modalità
+      if (mode.type === 'teams') {
+        // Assegna automaticamente i team se necessario
+        updates['currentTeamTurn'] = 'A';
       }
-
-      await update(ref(database, `rooms/${roomCode}`), updateData);
+      
+      if (mode.type === 'turnBased') {
+        // Inizializza l'ordine dei turni
+        const playerIds = Object.keys(roomData?.players || {});
+        const turnOrder = playerIds.map(id => ({
+          id,
+          name: roomData?.players[id]?.name || 'Unknown'
+        }));
+        
+        updates['currentTurn'] = {
+          playerId: playerIds[0],
+          playerName: roomData?.players[playerIds[0]]?.name || 'Unknown',
+          turnNumber: 1,
+          startTime: Date.now(),
+          advantagePhase: true,
+          turnOrder,
+          nextPlayerIndex: 1
+        };
+      }
+      
+      await update(roomRef, updates);
       
       setCurrentGameMode(mode);
       toast.success(`Modalità "${mode.name}" attivata!`);

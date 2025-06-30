@@ -10,6 +10,20 @@ interface RoomInfo {
   createdAt: number;
 }
 
+// Interfaccia per i dati delle stanze da Firebase
+interface FirebaseRoomData {
+  hostName?: string;
+  players?: Record<string, unknown>;
+  createdAt?: number;
+  [key: string]: unknown;
+}
+
+// Interfaccia per gli errori Firebase
+interface FirebaseError extends Error {
+  code?: string;
+  message: string;
+}
+
 const AdminPanel: React.FC = () => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +45,7 @@ const AdminPanel: React.FC = () => {
         const roomsData = snapshot.val();
         console.log('Dati ricevuti:', roomsData);
         
-        const roomList = Object.entries(roomsData).map(([roomCode, roomData]: [string, any]) => ({
+        const roomList = Object.entries(roomsData).map(([roomCode, roomData]: [string, FirebaseRoomData]) => ({
           roomCode,
           hostName: roomData.hostName || 'Host sconosciuto',
           playerCount: roomData.players ? Object.keys(roomData.players).length : 0,
@@ -46,13 +60,14 @@ const AdminPanel: React.FC = () => {
         setRooms([]);
         toast.info('Nessuna stanza trovata');
       }
-    } catch (error: any) {
-      console.error('❌ Errore nel recuperare le stanze:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      console.error('❌ Errore nel recuperare le stanze:', firebaseError);
+      console.error('Error code:', firebaseError.code);
+      console.error('Error message:', firebaseError.message);
       
       // Se c'è un errore di permessi, prova con dati mock per debug
-      if (error.code === 'PERMISSION_DENIED') {
+      if (firebaseError.code === 'PERMISSION_DENIED') {
         console.log('🔧 Errore di permessi - usando dati di test per debug');
         toast.error('Errore di permessi Firebase - usando dati di test');
         
@@ -67,7 +82,7 @@ const AdminPanel: React.FC = () => {
         ];
         setRooms(mockRooms);
       } else {
-        toast.error(`Errore nel recuperare le stanze: ${error.message}`);
+        toast.error(`Errore nel recuperare le stanze: ${firebaseError.message}`);
         setRooms([]);
       }
     } finally {
@@ -103,12 +118,13 @@ const AdminPanel: React.FC = () => {
         console.log('📭 Nessuna stanza da eliminare');
         toast.info('Nessuna stanza da eliminare');
       }
-    } catch (error: any) {
-      console.error('❌ Errore nell\'eliminare le stanze:', error);
-      if (error.code === 'PERMISSION_DENIED') {
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      console.error('❌ Errore nell\'eliminare le stanze:', firebaseError);
+      if (firebaseError.code === 'PERMISSION_DENIED') {
         toast.error('Errore di permessi: non puoi eliminare le stanze');
       } else {
-        toast.error(`Errore nell\'eliminare le stanze: ${error.message}`);
+        toast.error(`Errore nell'eliminare le stanze: ${firebaseError.message}`);
       }
     } finally {
       setIsLoading(false);
@@ -131,12 +147,13 @@ const AdminPanel: React.FC = () => {
       
       console.log(`✅ Stanza ${roomCode} eliminata con successo`);
       toast.success(`Stanza ${roomCode} eliminata con successo!`);
-    } catch (error: any) {
-      console.error(`❌ Errore nell'eliminare la stanza ${roomCode}:`, error);
-      if (error.code === 'PERMISSION_DENIED') {
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      console.error(`❌ Errore nell'eliminare la stanza ${roomCode}:`, firebaseError);
+      if (firebaseError.code === 'PERMISSION_DENIED') {
         toast.error(`Errore di permessi: non puoi eliminare la stanza ${roomCode}`);
       } else {
-        toast.error(`Errore nell'eliminare la stanza ${roomCode}: ${error.message}`);
+        toast.error(`Errore nell'eliminare la stanza ${roomCode}: ${firebaseError.message}`);
       }
     }
   };
@@ -255,6 +272,10 @@ const AdminPanel: React.FC = () => {
             🔧 Test Connessione
           </button>
         </div>
+
+        <span className="text-gray-600 dark:text-gray-400">
+          L'host può resettare buzz, assegnare punti e controllare il game
+        </span>
       </div>
     </div>
   );

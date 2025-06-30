@@ -47,8 +47,13 @@ export function AnswerNotification() {
 
         // Suono di notifica aggiuntivo (se supportato)
         try {
+          // Definizione tipizzata per webkit AudioContext
+          interface WebkitWindow extends Window {
+            webkitAudioContext?: typeof AudioContext;
+          }
+          
           // Crea un beep audio breve per attirare l'attenzione
-          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const audioContext = new (window.AudioContext || (window as WebkitWindow).webkitAudioContext)();
           const oscillator = audioContext.createOscillator();
           const gainNode = audioContext.createGain();
           

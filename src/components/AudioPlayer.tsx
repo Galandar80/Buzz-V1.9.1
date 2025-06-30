@@ -198,13 +198,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
         console.log('🎯 BUZZ DETECTED! Qualcuno ha premuto buzz:', winnerData);
         
         // Ottieni la canzone corrente dal roomData o dal nostro stato locale
-        const currentSong = roomData?.currentSong || currentSongPlaying || nowPlaying.left;
+        const currentSong = roomData?.currentSong || currentSongPlaying || nowPlaying.left || nowPlaying.right;
         
-        if (currentSong && currentSong.trim() !== '') {
-          console.log('🎯 MARCANDO BRANO COME UTILIZZATO per BUZZ:', currentSong);
+        if (currentSong && currentSong.trim()) {
+          console.log('🎯 Marcando canzone come utilizzata per BUZZ:', currentSong);
           addSongToUsedCacheUltraRobust(currentSong);
         } else {
-          console.warn('⚠️ BUZZ rilevato ma nessuna canzone corrente trovata');
+          console.log('⚠️ Nessuna canzone corrente trovata durante il BUZZ');
         }
       }
     });
@@ -213,7 +213,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       console.log('🔌 ULTRA-ROBUSTO: Disconnessione listener BUZZ');
       unsubscribe();
     };
-  }, [roomCode, roomData?.currentSong, currentSongPlaying, nowPlaying.left]);
+  }, [roomCode, STORAGE_KEY, roomData?.currentSong, currentSongPlaying, nowPlaying.left, nowPlaying.right]);
 
   // FUNZIONE DI CONTROLLO ULTRA-AFFIDABILE
   const isSongUsedUltraRobust = useCallback((songName: string) => {
@@ -636,39 +636,30 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   }, [isHost, roomCode, executePlayAudio]);
 
   const stopAudioPlayback = useCallback(() => {
+    console.log('🛑 STOP: Fermando riproduzione audio');
+    
     if (currentAudio) {
-      // Fade out prima di fermare
-      let currentVolume = currentAudio.volume;
-      const fadeInterval = setInterval(() => {
-        currentVolume -= 0.1;
-        if (currentVolume <= 0) {
-          currentVolume = 0;
-          currentAudio.volume = 0;
-          currentAudio.pause();
-          // Pulisci URL object quando fermiamo l'audio
-          if (currentAudio.src) {
-            URL.revokeObjectURL(currentAudio.src);
-          }
-          clearInterval(fadeInterval);
-        } else {
-          currentAudio.volume = currentVolume;
-        }
-      }, 50);
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      
+      // Rimuovi event listeners
+      currentAudio.removeEventListener('timeupdate', () => {});
+      currentAudio.removeEventListener('loadedmetadata', () => {});
+      currentAudio.removeEventListener('ended', () => {});
     }
-
-    // Reset degli stati
+    
+    // Reset di tutti gli stati
     setCurrentAudio(null);
     setCurrentColumn(null);
     setNowPlaying({ left: '', right: '' });
-    setCurrentSongPlaying(''); // Reset canzone corrente
     setIsCountdownActive(false);
-    setPendingAudioData(null);
-
-    // Disabilita il buzz quando si ferma manualmente l'audio
-    window.dispatchEvent(new CustomEvent('disableBuzzForSong'));
-    window.dispatchEvent(new CustomEvent('mainPlayerStop'));
-    setIsRemotePlaying(false);
-  }, [currentAudio]);
+    setCurrentSongPlaying(''); // ✅ AGGIUNTO: Reset canzone corrente
+    
+    // Notifica la pausa se richiesta
+    if (onAudioPause) {
+      onAudioPause();
+    }
+  }, [currentAudio, onAudioPause]);
 
   // Esponi la funzione di pausa globalmente
   useEffect(() => {

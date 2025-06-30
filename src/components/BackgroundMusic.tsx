@@ -147,7 +147,7 @@ const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
     console.log('🎵 BackgroundMusic: Inizializzando event listeners...');
     
     // Ascolta anche i controlli da Firebase per sincronizzazione tra dispositivi
-    let unsubscribeControl = null;
+    let unsubscribeControl: (() => void) | null = null;
     if (roomCode) {
       const backgroundMusicControlRef = ref(database, `rooms/${roomCode}/backgroundMusicControl`);
       unsubscribeControl = onValue(backgroundMusicControlRef, (snapshot) => {
@@ -166,8 +166,9 @@ const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
       if (unsubscribeControl) {
         unsubscribeControl();
       }
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
+      const fadeInterval = fadeIntervalRef.current;
+      if (fadeInterval) {
+        clearInterval(fadeInterval);
       }
     };
   }, [fadeOutBackground, fadeInBackground, roomCode]);
@@ -199,8 +200,11 @@ const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
       if (autoPlay) {
         audio.play().then(() => {
           setIsPlaying(true);
-          toast.success('Musica di background avviata');
-        }).catch(console.error);
+          setIsPaused(false);
+          console.log('🎵 Riproduzione automatica avviata');
+        }).catch(error => {
+          console.error('🎵 Errore nell\'autoplay:', error);
+        });
       }
     }
   }, [backgroundTracks, currentTrackIndex, backgroundVolume, autoPlay]);
