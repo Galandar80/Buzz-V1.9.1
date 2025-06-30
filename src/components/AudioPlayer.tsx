@@ -87,6 +87,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   const [countdownSongName, setCountdownSongName] = useState('');
   const [pendingAudioData, setPendingAudioData] = useState<{ file: File; column: 'left' | 'right' } | null>(null);
 
+  // Stato per forzare il re-render quando i playedSongs cambiano
+  const [playedSongsVersion, setPlayedSongsVersion] = useState(0);
+
   const leftTbodyRef = useRef<HTMLTableSectionElement>(null);
   const rightTbodyRef = useRef<HTMLTableSectionElement>(null);
   const streamManagerRef = useRef<AudioStreamManager | null>(null);
@@ -606,8 +609,40 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   };
 
   const isSongPlayed = (songName: string) => {
-    return roomData?.playedSongs?.includes(songName) || false;
+    const isPlayed = roomData?.playedSongs?.includes(songName) || false;
+    
+    // Debug logging per verificare il problema
+    if (songName === 'Acchiappa Fantasmi.mp3' || songName === 'Adventure Time.mp3') {
+      console.log('🔍 Debug isSongPlayed:', {
+        songName,
+        isPlayed,
+        playedSongs: roomData?.playedSongs,
+        roomDataExists: !!roomData,
+        version: playedSongsVersion
+      });
+    }
+    
+    return isPlayed;
   };
+
+  // Debug effect per monitorare i cambiamenti in playedSongs
+  useEffect(() => {
+    if (roomData?.playedSongs) {
+      console.log('🎵 PlayedSongs aggiornato:', roomData.playedSongs);
+      // Forza il re-render incrementando il version counter
+      setPlayedSongsVersion(prev => prev + 1);
+    }
+  }, [roomData?.playedSongs]);
+
+  // Debug effect per monitorare tutti i cambiamenti in roomData
+  useEffect(() => {
+    console.log('🔍 RoomData completo aggiornato:', {
+      hasRoomData: !!roomData,
+      playedSongsCount: roomData?.playedSongs?.length || 0,
+      playedSongs: roomData?.playedSongs,
+      version: playedSongsVersion
+    });
+  }, [roomData, playedSongsVersion]);
 
   // Variabili filtrate per i file audio
   const filteredLeftFiles = leftFiles.filter(file => 
