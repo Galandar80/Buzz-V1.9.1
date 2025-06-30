@@ -87,16 +87,48 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   const [countdownSongName, setCountdownSongName] = useState('');
   const [pendingAudioData, setPendingAudioData] = useState<{ file: File; column: 'left' | 'right' } | null>(null);
 
-  // Stato per forzare il re-render quando i playedSongs cambiano
-  const [playedSongsVersion, setPlayedSongsVersion] = useState(0);
-  
-  // Stato locale per i brani appena utilizzati (prima della sincronizzazione Firebase)
-  const [localPlayedSongs, setLocalPlayedSongs] = useState<string[]>([]);
+  // NUOVO SISTEMA DI TRACKING PER I BRANI UTILIZZATI
+  const [usedSongs, setUsedSongs] = useState<Set<string>>(new Set());
+  const [renderTrigger, setRenderTrigger] = useState(0);
 
   const leftTbodyRef = useRef<HTMLTableSectionElement>(null);
   const rightTbodyRef = useRef<HTMLTableSectionElement>(null);
   const streamManagerRef = useRef<AudioStreamManager | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Inizializza i brani utilizzati da Firebase quando roomData cambia
+  useEffect(() => {
+    if (roomData?.playedSongs) {
+      console.log('🎵 Sincronizzazione brani utilizzati da Firebase:', roomData.playedSongs);
+      setUsedSongs(new Set(roomData.playedSongs));
+      setRenderTrigger(prev => prev + 1);
+    }
+  }, [roomData?.playedSongs]);
+
+  // Funzione per marcare un brano come utilizzato
+  const markSongAsUsed = useCallback((songName: string) => {
+    console.log('🎵 Marcando brano come utilizzato:', songName);
+    setUsedSongs(prev => {
+      const newSet = new Set(prev);
+      newSet.add(songName);
+      return newSet;
+    });
+    setRenderTrigger(prev => prev + 1);
+    
+    // Aggiorna anche Firebase
+    if (roomCode) {
+      addPlayedSong(roomCode, songName).then(() => {
+        console.log('🎵 Brano aggiunto a Firebase:', songName);
+      }).catch(console.error);
+    }
+  }, [roomCode]);
+
+  // Funzione per verificare se un brano è utilizzato
+  const isSongUsed = useCallback((songName: string) => {
+    const isUsed = usedSongs.has(songName);
+    console.log('🔍 Controllo se brano è utilizzato:', { songName, isUsed, totalUsed: usedSongs.size });
+    return isUsed;
+  }, [usedSongs]);
 
   // Gestione eventi countdown e sincronizzazione con Firebase
   useEffect(() => {
@@ -286,20 +318,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       // Pulisci URL object quando terminato
       URL.revokeObjectURL(audioURL);
       
-      // Aggiungi la canzone ai brani riprodotti
-      if (roomCode) {
-        // Prima aggiorna immediatamente lo stato locale per forzare il re-render
-        console.log('🎵 Forzando re-render per brano utilizzato:', file.name);
-        setLocalPlayedSongs(prev => prev.includes(file.name) ? prev : [...prev, file.name]);
-        setPlayedSongsVersion(prev => prev + 1);
-        
-        // Poi aggiorna Firebase
-        addPlayedSong(roomCode, file.name).then(() => {
-          console.log('🎵 Brano aggiunto a Firebase:', file.name);
-          // Forza un altro re-render dopo l'aggiornamento Firebase
-          setPlayedSongsVersion(prev => prev + 1);
-        }).catch(console.error);
-      }
+      // NUOVO SISTEMA: Marca immediatamente il brano come utilizzato
+      console.log('🎵 Marcando brano come utilizzato:', file.name);
+      markSongAsUsed(file.name);
       
       if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
         // Per il loop, riavvia direttamente senza countdown per evitare dipendenze circolari
@@ -621,48 +642,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     }
   };
 
-  const isSongPlayed = (songName: string) => {
-    // Controlla sia lo stato Firebase che quello locale per garantire che l'evidenziazione sia immediata
-    const isPlayedInFirebase = roomData?.playedSongs?.includes(songName) || false;
-    const isPlayedLocally = localPlayedSongs.includes(songName);
-    const isPlayed = isPlayedInFirebase || isPlayedLocally;
-    
-    // Debug logging per verificare il problema
-    if (songName === 'Acchiappa Fantasmi.mp3' || songName === 'Adventure Time.mp3') {
-      console.log('🔍 Debug isSongPlayed:', {
-        songName,
-        isPlayed,
-        isPlayedInFirebase,
-        isPlayedLocally,
-        playedSongs: roomData?.playedSongs,
-        localPlayedSongs,
-        roomDataExists: !!roomData,
-        version: playedSongsVersion
-      });
-    }
-    
-    return isPlayed;
-  };
-
-  // Debug effect per monitorare i cambiamenti in playedSongs
-  useEffect(() => {
-    if (roomData?.playedSongs) {
-      console.log('🎵 PlayedSongs aggiornato:', roomData.playedSongs);
-      // Forza il re-render incrementando il version counter
-      setPlayedSongsVersion(prev => prev + 1);
-    }
-  }, [roomData?.playedSongs]);
-
-  // Debug effect per monitorare tutti i cambiamenti in roomData
-  useEffect(() => {
-    console.log('🔍 RoomData completo aggiornato:', {
-      hasRoomData: !!roomData,
-      playedSongsCount: roomData?.playedSongs?.length || 0,
-      playedSongs: roomData?.playedSongs,
-      version: playedSongsVersion
-    });
-  }, [roomData, playedSongsVersion]);
-
   // Variabili filtrate per i file audio
   const filteredLeftFiles = leftFiles.filter(file => 
     file.name.toLowerCase().includes(searchFilter.left.toLowerCase())
@@ -681,8 +660,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
         playedSongs: []
       });
       
-      // Reset anche dello stato locale
-      setLocalPlayedSongs([]);
+      // Reset anche del nuovo sistema
+      setUsedSongs(new Set());
+      setRenderTrigger(prev => prev + 1);
       
       toast.success('Lista brani utilizzati resettata!', {
         description: 'Tutti i brani sono ora disponibili per essere utilizzati nuovamente'
@@ -819,7 +799,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 <div>
                   <h3 className="text-xl font-bold text-primary">Player Sx</h3>
                   <p className="text-sm text-white/60">
-                    Brani utilizzati: {leftFiles.filter(file => isSongPlayed(file.name)).length} / {leftFiles.length}
+                    Brani utilizzati: {leftFiles.filter(file => isSongUsed(file.name)).length} / {leftFiles.length}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -858,49 +838,54 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                     </tr>
                   </thead>
                   <tbody ref={leftTbodyRef}>
-                    {filteredLeftFiles.map((file, index) => (
-                      <tr 
-                        key={index} 
-                        onClick={() => playAudio(file, 'left')}
-                        className={`cursor-pointer transition-colors ${
-                          isSongPlayed(file.name)
-                            ? nowPlaying.left === file.name
-                              ? 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Brano utilizzato + in riproduzione
-                              : 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' // Solo utilizzato
-                            : nowPlaying.left === file.name 
-                              ? 'bg-primary/30 border-l-4 border-primary' // Solo in riproduzione (non utilizzato)
-                              : 'hover:bg-white/10' // Normale
-                        }`}
-                      >
-                        <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
-                        <td className="track-title flex items-center gap-2">
-                          {isSongPlayed(file.name) && (
-                            <span className="text-red-400 text-xs font-bold bg-red-500/20 px-2 py-1 rounded">
-                              ✓ USATO
-                              {nowPlaying.left === file.name && <span className="ml-1 animate-pulse">🔊</span>}
+                    {filteredLeftFiles.map((file, index) => {
+                      const isUsed = isSongUsed(file.name);
+                      const isCurrentlyPlaying = nowPlaying.left === file.name;
+                      
+                      return (
+                        <tr 
+                          key={`${index}-${renderTrigger}`}
+                          onClick={() => playAudio(file, 'left')}
+                          className={`cursor-pointer transition-colors ${
+                            isUsed
+                              ? isCurrentlyPlaying
+                                ? 'bg-red-500/70 border-l-4 border-red-300 hover:bg-red-500/80' // Utilizzato + in riproduzione
+                                : 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Solo utilizzato
+                              : isCurrentlyPlaying 
+                                ? 'bg-primary/40 border-l-4 border-primary hover:bg-primary/50' // Solo in riproduzione
+                                : 'hover:bg-white/10' // Normale
+                          }`}
+                        >
+                          <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
+                          <td className="track-title flex items-center gap-2">
+                            {isUsed && (
+                              <span className="text-red-200 text-xs font-bold bg-red-600/40 px-2 py-1 rounded border border-red-400/50">
+                                ✓ USATO
+                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-200">🔊</span>}
+                              </span>
+                            )}
+                            <span className={
+                              isUsed 
+                                ? 'text-red-100 line-through font-medium' 
+                                : isCurrentlyPlaying 
+                                  ? 'text-primary font-semibold' 
+                                  : 'text-white'
+                            }>
+                              {file.name}
                             </span>
-                          )}
-                          <span className={
-                            isSongPlayed(file.name) 
-                              ? 'text-red-200 line-through' 
-                              : nowPlaying.left === file.name 
-                                ? 'text-primary font-semibold' 
-                                : ''
-                          }>
-                            {file.name}
-                          </span>
-                        </td>
-                        <td className="w-16 text-center">
-                          <Play size={18} className={
-                            isSongPlayed(file.name) 
-                              ? "text-red-400" 
-                              : nowPlaying.left === file.name 
-                                ? "text-primary animate-pulse" 
-                                : "text-primary"
-                          } />
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="w-16 text-center">
+                            <Play size={18} className={
+                              isUsed 
+                                ? "text-red-300" 
+                                : isCurrentlyPlaying 
+                                  ? "text-primary animate-pulse" 
+                                  : "text-primary"
+                            } />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -912,7 +897,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 <div>
                   <h3 className="text-xl font-bold text-primary">Player Dx</h3>
                   <p className="text-sm text-white/60">
-                    Brani utilizzati: {rightFiles.filter(file => isSongPlayed(file.name)).length} / {rightFiles.length}
+                    Brani utilizzati: {rightFiles.filter(file => isSongUsed(file.name)).length} / {rightFiles.length}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -951,73 +936,78 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                     </tr>
                   </thead>
                   <tbody ref={rightTbodyRef}>
-                    {filteredRightFiles.map((file, index) => (
-                      <tr 
-                        key={index} 
-                        onClick={() => playAudio(file, 'right')}
-                        className={`cursor-pointer transition-colors ${
-                          isSongPlayed(file.name)
-                            ? nowPlaying.right === file.name
-                              ? 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Brano utilizzato + in riproduzione
-                              : 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' // Solo utilizzato
-                            : nowPlaying.right === file.name 
-                              ? 'bg-primary/30 border-l-4 border-primary' // Solo in riproduzione (non utilizzato)
-                              : 'hover:bg-white/10' // Normale
-                        }`}
-                      >
-                        <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
-                        <td className="track-title flex items-center gap-2">
-                          {isSongPlayed(file.name) && (
-                            <span className="text-red-400 text-xs font-bold bg-red-500/20 px-2 py-1 rounded">
-                              ✓ USATO
-                              {nowPlaying.right === file.name && <span className="ml-1 animate-pulse">🔊</span>}
+                    {filteredRightFiles.map((file, index) => {
+                      const isUsed = isSongUsed(file.name);
+                      const isCurrentlyPlaying = nowPlaying.right === file.name;
+                      
+                      return (
+                        <tr 
+                          key={`${index}-${renderTrigger}`}
+                          onClick={() => playAudio(file, 'right')}
+                          className={`cursor-pointer transition-colors ${
+                            isUsed
+                              ? isCurrentlyPlaying
+                                ? 'bg-red-500/70 border-l-4 border-red-300 hover:bg-red-500/80' // Utilizzato + in riproduzione
+                                : 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Solo utilizzato
+                              : isCurrentlyPlaying 
+                                ? 'bg-primary/40 border-l-4 border-primary hover:bg-primary/50' // Solo in riproduzione
+                                : 'hover:bg-white/10' // Normale
+                          }`}
+                        >
+                          <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
+                          <td className="track-title flex items-center gap-2">
+                            {isUsed && (
+                              <span className="text-red-200 text-xs font-bold bg-red-600/40 px-2 py-1 rounded border border-red-400/50">
+                                ✓ USATO
+                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-200">🔊</span>}
+                              </span>
+                            )}
+                            <span className={
+                              isUsed 
+                                ? 'text-red-100 line-through font-medium' 
+                                : isCurrentlyPlaying 
+                                  ? 'text-primary font-semibold' 
+                                  : 'text-white'
+                            }>
+                              {file.name}
                             </span>
-                          )}
-                          <span className={
-                            isSongPlayed(file.name) 
-                              ? 'text-red-200 line-through' 
-                              : nowPlaying.right === file.name 
-                                ? 'text-primary font-semibold' 
-                                : ''
-                          }>
-                            {file.name}
-                          </span>
-                        </td>
-                        <td className="w-16 text-center">
-                          <Play size={18} className={
-                            isSongPlayed(file.name) 
-                              ? "text-red-400" 
-                              : nowPlaying.right === file.name 
-                                ? "text-primary animate-pulse" 
-                                : "text-primary"
-                          } />
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="w-16 text-center">
+                            <Play size={18} className={
+                              isUsed 
+                                ? "text-red-300" 
+                                : isCurrentlyPlaying 
+                                  ? "text-primary animate-pulse" 
+                                  : "text-primary"
+                            } />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
 
-          {/* Pannello riepilogo brani utilizzati */}
-          {(roomData?.playedSongs?.length ?? 0) > 0 && (
-            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-              <h4 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
-                🎵 Brani già utilizzati ({roomData?.playedSongs?.length ?? 0})
+          {/* Pannello riepilogo brani utilizzati - AGGIORNATO */}
+          {usedSongs.size > 0 && (
+            <div className="mt-6 bg-red-500/15 border border-red-500/40 rounded-lg p-4">
+              <h4 className="text-lg font-bold text-red-300 mb-3 flex items-center gap-2">
+                🎵 Brani già utilizzati ({usedSongs.size})
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {roomData?.playedSongs?.map((songName, index) => (
+                {Array.from(usedSongs).map((songName, index) => (
                   <div 
-                    key={index}
-                    className="bg-red-500/20 text-red-200 px-3 py-2 rounded-lg text-sm flex items-center gap-2"
+                    key={`used-${index}-${renderTrigger}`}
+                    className="bg-red-500/25 text-red-100 px-3 py-2 rounded-lg text-sm flex items-center gap-2 border border-red-500/30"
                   >
-                    <span className="text-red-400 font-bold">✓</span>
+                    <span className="text-red-300 font-bold">✓</span>
                     <span className="truncate" title={songName}>{songName}</span>
                   </div>
-                )) ?? []}
+                ))}
               </div>
-              <div className="mt-3 text-xs text-red-300/70">
+              <div className="mt-3 text-xs text-red-200/80">
                 💡 Suggerimento: I brani evidenziati in rosso nelle liste sopra sono già stati utilizzati
               </div>
             </div>
