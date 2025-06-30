@@ -191,7 +191,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     console.log('🎯 ULTRA-ROBUSTO: Attivando listener per BUZZ');
     const winnerRef = ref(database, `rooms/${roomCode}/winnerInfo`);
     
-    const unsubscribe = onValue(winnerRef, (snapshot) => {
+    const unsubscribe = onValue(winnerRef, async (snapshot) => {
       const winnerData = snapshot.val();
       
       if (winnerData && winnerData.playerId && winnerData.playerName) {
@@ -202,7 +202,38 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
         
         if (currentSong && currentSong.trim()) {
           console.log('🎯 Marcando canzone come utilizzata per BUZZ:', currentSong);
-          addSongToUsedCacheUltraRobust(currentSong);
+          
+          // Logica diretta per evitare dipendenza circolare
+          setUsedSongsCache(prev => {
+            const newSet = new Set(prev);
+            newSet.add(currentSong);
+            
+            const newArray = Array.from(newSet);
+            console.log('📝 ULTRA-ROBUSTO: Cache aggiornata:', newArray);
+            
+            // Salva immediatamente in localStorage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newArray));
+            console.log('💾 ULTRA-ROBUSTO: Salvato localStorage immediately:', newArray);
+            
+            return newSet;
+          });
+          
+          // Forza re-render immediato
+          setRerenderCounter(prev => prev + 1);
+          
+          // Aggiorna Firebase (asincrono)
+          try {
+            await addPlayedSong(roomCode, currentSong);
+            console.log('🔗 ULTRA-ROBUSTO: Salvato in Firebase:', currentSong);
+            
+            // Secondo re-render post-Firebase
+            setTimeout(() => {
+              setRerenderCounter(prev => prev + 1);
+            }, 300);
+            
+          } catch (error) {
+            console.error('❌ ULTRA-ROBUSTO: Errore Firebase (ma localStorage funziona):', error);
+          }
         } else {
           console.log('⚠️ Nessuna canzone corrente trovata durante il BUZZ');
         }
@@ -213,7 +244,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       console.log('🔌 ULTRA-ROBUSTO: Disconnessione listener BUZZ');
       unsubscribe();
     };
-  }, [roomCode, STORAGE_KEY, roomData?.currentSong, currentSongPlaying, nowPlaying.left, nowPlaying.right]);
+  }, [roomCode, roomData?.currentSong, currentSongPlaying, nowPlaying.left, nowPlaying.right, STORAGE_KEY, addPlayedSong]);
 
   // FUNZIONE DI CONTROLLO ULTRA-AFFIDABILE
   const isSongUsedUltraRobust = useCallback((songName: string) => {
@@ -246,45 +277,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     
     return isUsed;
   }, [usedSongsCache, roomData?.playedSongs, STORAGE_KEY]);
-
-  // FUNZIONE DI AGGIUNTA ULTRA-ROBUSTA
-  const addSongToUsedCacheUltraRobust = useCallback(async (songName: string) => {
-    console.log('🎯 ULTRA-ROBUSTO: Aggiungendo brano:', songName);
-    
-    // 1. AGGIORNA CACHE LOCALE IMMEDIATAMENTE
-    setUsedSongsCache(prev => {
-      const newSet = new Set(prev);
-      newSet.add(songName);
-      
-      const newArray = Array.from(newSet);
-      console.log('📝 ULTRA-ROBUSTO: Cache aggiornata:', newArray);
-      
-      // 2. SALVA IMMEDIATAMENTE in localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newArray));
-      console.log('💾 ULTRA-ROBUSTO: Salvato localStorage immediately:', newArray);
-      
-      return newSet;
-    });
-    
-    // 3. FORZA RE-RENDER IMMEDIATO
-    setRerenderCounter(prev => prev + 1);
-    
-    // 4. AGGIORNA FIREBASE (asincrono)
-    if (roomCode) {
-      try {
-        await addPlayedSong(roomCode, songName);
-        console.log('🔗 ULTRA-ROBUSTO: Salvato in Firebase:', songName);
-        
-        // 5. SECONDO RE-RENDER post-Firebase
-        setTimeout(() => {
-          setRerenderCounter(prev => prev + 1);
-        }, 300);
-        
-      } catch (error) {
-        console.error('❌ ULTRA-ROBUSTO: Errore Firebase (ma localStorage funziona):', error);
-      }
-    }
-  }, [roomCode, STORAGE_KEY]);
 
   // Funzione di controllo semplificata e SEMPRE affidabile
   const isSongPersistentlyUsed = useCallback((songName: string) => {
