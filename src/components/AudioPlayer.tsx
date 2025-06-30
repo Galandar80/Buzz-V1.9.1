@@ -618,6 +618,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     file.name.toLowerCase().includes(searchFilter.right.toLowerCase())
   );
 
+  // Funzione per resettare la lista dei brani utilizzati (solo per l'host)
+  const resetPlayedSongs = useCallback(async () => {
+    if (!isHost || !roomCode) return;
+    
+    try {
+      await update(ref(database, `rooms/${roomCode}`), {
+        playedSongs: []
+      });
+      
+      toast.success('Lista brani utilizzati resettata!', {
+        description: 'Tutti i brani sono ora disponibili per essere utilizzati nuovamente'
+      });
+    } catch (error) {
+      console.error('Errore durante il reset dei brani utilizzati:', error);
+      toast.error('Errore durante il reset della lista brani');
+    }
+  }, [isHost, roomCode]);
+
   // Funzione per resettare completamente il player audio (solo per l'host)
   const resetAudioPlayer = useCallback(() => {
     try {
@@ -695,14 +713,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
           {/* Pulsante di reset del player audio - visibile solo per l'host */}
           <div className="mb-6 flex justify-between items-center">
             <h2 className="text-2xl font-bold text-primary">Audio Player - Controller</h2>
-            <button
-              onClick={resetAudioPlayer}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-lg transition-colors border border-red-500/30"
-              title="Reset completo del player audio - Usa questo se il player non funziona più correttamente"
-            >
-              <RotateCcw className="w-5 h-5" />
-              Reset Player Audio
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={resetPlayedSongs}
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 hover:text-yellow-300 rounded-lg transition-colors border border-yellow-500/30"
+                title="Reset lista brani utilizzati - Tutti i brani torneranno disponibili"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Reset Lista Brani
+              </button>
+              <button
+                onClick={resetAudioPlayer}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-lg transition-colors border border-red-500/30"
+                title="Reset completo del player audio - Usa questo se il player non funziona più correttamente"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reset Player Audio
+              </button>
+            </div>
           </div>
 
           {/* Bottoni di test e controllo */}
@@ -727,7 +759,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
             {/* Player Sx */}
             <div className="flex-1">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-primary">Player Sx</h3>
+                <div>
+                  <h3 className="text-xl font-bold text-primary">Player Sx</h3>
+                  <p className="text-sm text-white/60">
+                    Brani utilizzati: {leftFiles.filter(file => isSongPlayed(file.name)).length} / {leftFiles.length}
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleFileSelect('left')}
@@ -768,12 +805,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                       <tr 
                         key={index} 
                         onClick={() => playAudio(file, 'left')}
-                        className={`cursor-pointer ${nowPlaying.left === file.name ? 'bg-primary/30' : isSongPlayed(file.name) ? 'bg-red-500/20' : ''}`}
+                        className={`cursor-pointer transition-colors ${
+                          nowPlaying.left === file.name 
+                            ? 'bg-primary/30 border-l-4 border-primary' 
+                            : isSongPlayed(file.name) 
+                              ? 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' 
+                              : 'hover:bg-white/10'
+                        }`}
                       >
                         <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
-                        <td className="track-title">{file.name}</td>
+                        <td className="track-title flex items-center gap-2">
+                          {isSongPlayed(file.name) && (
+                            <span className="text-red-400 text-xs font-bold">✓ USATO</span>
+                          )}
+                          <span className={isSongPlayed(file.name) ? 'text-red-200 line-through' : ''}>{file.name}</span>
+                        </td>
                         <td className="w-16 text-center">
-                          <Play size={18} className="text-primary" />
+                          <Play size={18} className={isSongPlayed(file.name) ? "text-red-400" : "text-primary"} />
                         </td>
                       </tr>
                     ))}
@@ -785,7 +833,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
             {/* Player Dx */}
             <div className="flex-1">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-primary">Player Dx</h3>
+                <div>
+                  <h3 className="text-xl font-bold text-primary">Player Dx</h3>
+                  <p className="text-sm text-white/60">
+                    Brani utilizzati: {rightFiles.filter(file => isSongPlayed(file.name)).length} / {rightFiles.length}
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleFileSelect('right')}
@@ -826,12 +879,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                       <tr 
                         key={index} 
                         onClick={() => playAudio(file, 'right')}
-                        className={`cursor-pointer ${nowPlaying.right === file.name ? 'bg-primary/30' : isSongPlayed(file.name) ? 'bg-red-500/20' : ''}`}
+                        className={`cursor-pointer transition-colors ${
+                          nowPlaying.right === file.name 
+                            ? 'bg-primary/30 border-l-4 border-primary' 
+                            : isSongPlayed(file.name) 
+                              ? 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' 
+                              : 'hover:bg-white/10'
+                        }`}
                       >
                         <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
-                        <td className="track-title">{file.name}</td>
+                        <td className="track-title flex items-center gap-2">
+                          {isSongPlayed(file.name) && (
+                            <span className="text-red-400 text-xs font-bold">✓ USATO</span>
+                          )}
+                          <span className={isSongPlayed(file.name) ? 'text-red-200 line-through' : ''}>{file.name}</span>
+                        </td>
                         <td className="w-16 text-center">
-                          <Play size={18} className="text-primary" />
+                          <Play size={18} className={isSongPlayed(file.name) ? "text-red-400" : "text-primary"} />
                         </td>
                       </tr>
                     ))}
