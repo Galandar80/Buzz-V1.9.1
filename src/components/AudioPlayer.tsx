@@ -94,6 +94,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   // CHIAVE LOCALSTORAGE UNICA PER STANZA
   const STORAGE_KEY = `buzzapp_used_songs_${roomCode}`;
 
+  // STATO PER TRACCIARE LA CANZONE CORRENTE QUANDO VIENE PREMUTO IL BUZZ
+  const [currentSongPlaying, setCurrentSongPlaying] = useState<string>('');
+
   const leftTbodyRef = useRef<HTMLTableSectionElement>(null);
   const rightTbodyRef = useRef<HTMLTableSectionElement>(null);
   const streamManagerRef = useRef<AudioStreamManager | null>(null);
@@ -181,6 +184,69 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     };
   }, [roomCode, STORAGE_KEY]);
 
+  // 🎯 NUOVO LISTENER PER BUZZ - QUESTO È IL CUORE DEL SISTEMA!
+  useEffect(() => {
+    if (!roomCode) return;
+
+    console.log('🎯 ULTRA-ROBUSTO: Attivando listener per BUZZ');
+    const winnerRef = ref(database, `rooms/${roomCode}/winnerInfo`);
+    
+    const unsubscribe = onValue(winnerRef, (snapshot) => {
+      const winnerData = snapshot.val();
+      
+      if (winnerData && winnerData.playerId && winnerData.playerName) {
+        console.log('🎯 BUZZ DETECTED! Qualcuno ha premuto buzz:', winnerData);
+        
+        // Ottieni la canzone corrente dal roomData o dal nostro stato locale
+        const currentSong = roomData?.currentSong || currentSongPlaying || nowPlaying.left;
+        
+        if (currentSong && currentSong.trim() !== '') {
+          console.log('🎯 MARCANDO BRANO COME UTILIZZATO per BUZZ:', currentSong);
+          addSongToUsedCacheUltraRobust(currentSong);
+        } else {
+          console.warn('⚠️ BUZZ rilevato ma nessuna canzone corrente trovata');
+        }
+      }
+    });
+
+    return () => {
+      console.log('🔌 ULTRA-ROBUSTO: Disconnessione listener BUZZ');
+      unsubscribe();
+    };
+  }, [roomCode, roomData?.currentSong, currentSongPlaying, nowPlaying.left]);
+
+  // FUNZIONE DI CONTROLLO ULTRA-AFFIDABILE
+  const isSongUsedUltraRobust = useCallback((songName: string) => {
+    // TRIPLO CONTROLLO: Cache + Firebase + localStorage
+    const cacheCheck = usedSongsCache.has(songName);
+    const firebaseCheck = roomData?.playedSongs?.includes(songName) || false;
+    
+    // Controllo aggiuntivo localStorage
+    let localStorageCheck = false;
+    try {
+      const savedSongs = localStorage.getItem(STORAGE_KEY);
+      if (savedSongs) {
+        const parsedSongs = JSON.parse(savedSongs);
+        localStorageCheck = parsedSongs.includes(songName);
+      }
+    } catch (error) {
+      console.error('❌ ULTRA-ROBUSTO: Errore lettura localStorage:', error);
+    }
+    
+    const isUsed = cacheCheck || firebaseCheck || localStorageCheck;
+    
+    console.log('🔍 ULTRA-ROBUSTO: Controllo triplo per:', songName, {
+      cacheCheck,
+      firebaseCheck,
+      localStorageCheck,
+      finalResult: isUsed,
+      cacheSize: usedSongsCache.size,
+      firebaseSize: roomData?.playedSongs?.length || 0
+    });
+    
+    return isUsed;
+  }, [usedSongsCache, roomData?.playedSongs, STORAGE_KEY]);
+
   // FUNZIONE DI AGGIUNTA ULTRA-ROBUSTA
   const addSongToUsedCacheUltraRobust = useCallback(async (songName: string) => {
     console.log('🎯 ULTRA-ROBUSTO: Aggiungendo brano:', songName);
@@ -219,70 +285,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       }
     }
   }, [roomCode, STORAGE_KEY]);
-
-  // FUNZIONE DI CONTROLLO ULTRA-AFFIDABILE
-  const isSongUsedUltraRobust = useCallback((songName: string) => {
-    // TRIPLO CONTROLLO: Cache + Firebase + localStorage
-    const cacheCheck = usedSongsCache.has(songName);
-    const firebaseCheck = roomData?.playedSongs?.includes(songName) || false;
-    
-    // Controllo aggiuntivo localStorage
-    let localStorageCheck = false;
-    try {
-      const savedSongs = localStorage.getItem(STORAGE_KEY);
-      if (savedSongs) {
-        const parsedSongs = JSON.parse(savedSongs);
-        localStorageCheck = parsedSongs.includes(songName);
-      }
-    } catch (error) {
-      console.error('❌ ULTRA-ROBUSTO: Errore lettura localStorage:', error);
-    }
-    
-    const isUsed = cacheCheck || firebaseCheck || localStorageCheck;
-    
-    console.log('🔍 ULTRA-ROBUSTO: Controllo triplo per:', songName, {
-      cacheCheck,
-      firebaseCheck,
-      localStorageCheck,
-      finalResult: isUsed,
-      cacheSize: usedSongsCache.size,
-      firebaseSize: roomData?.playedSongs?.length || 0
-    });
-    
-    return isUsed;
-  }, [usedSongsCache, roomData?.playedSongs, STORAGE_KEY]);
-
-  // Funzione migliorata per marcare brani utilizzati
-  const markSongAsUsedPersistent = useCallback(async (songName: string) => {
-    console.log('🎵 NUOVO SISTEMA: Marcando brano utilizzato:', songName);
-    
-    // 1. Aggiorna IMMEDIATAMENTE lo stato locale
-    setUsedSongsCache(prev => {
-      const newSet = new Set(prev);
-      newSet.add(songName);
-      console.log('🎵 NUOVO SISTEMA: Set locale aggiornato:', Array.from(newSet));
-      return newSet;
-    });
-    
-    // 2. Forza re-render immediato
-    setRerenderCounter(prev => prev + 1);
-    
-    // 3. Aggiorna Firebase
-    if (roomCode) {
-      try {
-        await addPlayedSong(roomCode, songName);
-        console.log('🎵 NUOVO SISTEMA: Brano salvato in Firebase:', songName);
-        
-        // 4. Forza un altro re-render dopo Firebase
-        setTimeout(() => {
-          setRerenderCounter(prev => prev + 1);
-        }, 500);
-        
-      } catch (error) {
-        console.error('🎵 NUOVO SISTEMA: Errore Firebase:', error);
-      }
-    }
-  }, [roomCode]);
 
   // Funzione di controllo semplificata e SEMPRE affidabile
   const isSongPersistentlyUsed = useCallback((songName: string) => {
@@ -419,9 +421,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       
       // Aggiorna la canzone corrente nel database per la modalità Esperto
       if (roomCode && column === 'left') {
+        const songName = file.name;
+        setCurrentSongPlaying(songName);
         update(ref(database, `rooms/${roomCode}`), {
-          currentSong: file.name
+          currentSong: songName
         }).catch(console.error);
+        console.log('🎵 CANZONE CORRENTE IMPOSTATA:', songName);
       }
       
       // Per il player di destra, NON abilitare mai il buzz
@@ -516,9 +521,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       // Pulisci URL object quando terminato
       URL.revokeObjectURL(audioURL);
       
-      // SISTEMA ULTRA-ROBUSTO: Marca il brano come utilizzato
-      console.log('🎯 ULTRA-ROBUSTO: Audio terminato, marcando brano:', file.name);
-      addSongToUsedCacheUltraRobust(file.name);
+      // RIMUOVO LA VECCHIA LOGICA: Non marco più i brani quando finiscono
+      // Il sistema ora marca solo quando qualcuno preme BUZZ!
+      console.log('🎵 Audio terminato - NON marco come utilizzato (solo con BUZZ)');
       
       if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
         // Per il loop, riavvia direttamente senza countdown per evitare dipendenze circolari
@@ -528,6 +533,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       } else {
         setCurrentAudio(null);
         setCurrentColumn(null);
+        setCurrentSongPlaying(''); // Reset canzone corrente
         if (column === 'left') {
           setNowPlaying(prev => ({ ...prev, left: '' }));
         } else {
@@ -654,6 +660,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     setCurrentAudio(null);
     setCurrentColumn(null);
     setNowPlaying({ left: '', right: '' });
+    setCurrentSongPlaying(''); // Reset canzone corrente
     setIsCountdownActive(false);
     setPendingAudioData(null);
 
