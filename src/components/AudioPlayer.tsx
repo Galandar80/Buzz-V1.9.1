@@ -87,67 +87,177 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   const [countdownSongName, setCountdownSongName] = useState('');
   const [pendingAudioData, setPendingAudioData] = useState<{ file: File; column: 'left' | 'right' } | null>(null);
 
-  // SISTEMA COMPLETAMENTE RINNOVATO PER I BRANI UTILIZZATI
-  const [persistentUsedSongs, setPersistentUsedSongs] = useState<Set<string>>(new Set());
-  const [forceRerender, setForceRerender] = useState(0);
+  // SISTEMA ULTRA-ROBUSTO CON PERSISTENZA TOTALE
+  const [usedSongsCache, setUsedSongsCache] = useState<Set<string>>(new Set());
+  const [rerenderCounter, setRerenderCounter] = useState(0);
+
+  // CHIAVE LOCALSTORAGE UNICA PER STANZA
+  const STORAGE_KEY = `buzzapp_used_songs_${roomCode}`;
 
   const leftTbodyRef = useRef<HTMLTableSectionElement>(null);
   const rightTbodyRef = useRef<HTMLTableSectionElement>(null);
   const streamManagerRef = useRef<AudioStreamManager | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Inizializza e sincronizza SEMPRE con Firebase
+  // INIZIALIZZAZIONE: Carica da localStorage al mount
   useEffect(() => {
-    console.log('🎵 NUOVO SISTEMA: Sincronizzazione con Firebase');
+    if (!roomCode) return;
+    
+    console.log('🔄 ULTRA-ROBUSTO: Inizializzazione sistema persistenza');
+    
+    // 1. Carica da localStorage
+    try {
+      const savedSongs = localStorage.getItem(STORAGE_KEY);
+      if (savedSongs) {
+        const parsedSongs = JSON.parse(savedSongs);
+        console.log('💾 ULTRA-ROBUSTO: Caricati da localStorage:', parsedSongs);
+        setUsedSongsCache(new Set(parsedSongs));
+      }
+    } catch (error) {
+      console.error('❌ ULTRA-ROBUSTO: Errore caricamento localStorage:', error);
+    }
+    
+    // 2. Carica da Firebase (se disponibile)
     if (roomData?.playedSongs) {
-      console.log('🎵 NUOVO SISTEMA: Firebase data:', roomData.playedSongs);
-      const firebaseSet = new Set(roomData.playedSongs);
-      
-      // Unisci sempre con i brani locali per garantire persistenza
-      setPersistentUsedSongs(prevLocal => {
-        const combined = new Set([...prevLocal, ...firebaseSet]);
-        console.log('🎵 NUOVO SISTEMA: Set combinato:', Array.from(combined));
+      console.log('🔗 ULTRA-ROBUSTO: Caricati da Firebase:', roomData.playedSongs);
+      setUsedSongsCache(prev => {
+        const combined = new Set([...prev, ...roomData.playedSongs]);
+        // Salva immediatamente in localStorage
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(combined)));
         return combined;
       });
-      
-      // Forza re-render
-      setForceRerender(prev => prev + 1);
     }
-  }, [roomData?.playedSongs]);
+    
+    setRerenderCounter(prev => prev + 1);
+  }, [roomCode, STORAGE_KEY]);
 
-  // Listener diretto per cambiamenti Firebase (backup system)
+  // SINCRONIZZAZIONE CONTINUA con Firebase
+  useEffect(() => {
+    if (roomData?.playedSongs) {
+      console.log('🔄 ULTRA-ROBUSTO: Sincronizzazione Firebase:', roomData.playedSongs);
+      setUsedSongsCache(prev => {
+        const combined = new Set([...prev, ...roomData.playedSongs]);
+        const newArray = Array.from(combined);
+        
+        // SALVA SEMPRE in localStorage
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newArray));
+        console.log('💾 ULTRA-ROBUSTO: Salvato in localStorage:', newArray);
+        
+        return combined;
+      });
+      setRerenderCounter(prev => prev + 1);
+    }
+  }, [roomData?.playedSongs, STORAGE_KEY]);
+
+  // LISTENER FIREBASE DIRETTO (backup)
   useEffect(() => {
     if (!roomCode) return;
 
-    console.log('🎵 NUOVO SISTEMA: Attivando listener Firebase diretto');
+    console.log('👂 ULTRA-ROBUSTO: Attivando listener Firebase diretto');
     const playedSongsRef = ref(database, `rooms/${roomCode}/playedSongs`);
     
     const unsubscribe = onValue(playedSongsRef, (snapshot) => {
       const firebaseData = snapshot.val() || [];
-      console.log('🎵 NUOVO SISTEMA: Listener Firebase attivato:', firebaseData);
+      console.log('🔗 ULTRA-ROBUSTO: Firebase listener update:', firebaseData);
       
-      if (Array.isArray(firebaseData) && firebaseData.length > 0) {
-        setPersistentUsedSongs(prevLocal => {
-          const combined = new Set([...prevLocal, ...firebaseData]);
-          console.log('🎵 NUOVO SISTEMA: Update da listener:', Array.from(combined));
+      if (Array.isArray(firebaseData)) {
+        setUsedSongsCache(prev => {
+          const combined = new Set([...prev, ...firebaseData]);
+          const newArray = Array.from(combined);
+          
+          // SALVA SEMPRE in localStorage
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newArray));
+          console.log('💾 ULTRA-ROBUSTO: Firebase -> localStorage:', newArray);
+          
           return combined;
         });
-        setForceRerender(prev => prev + 1);
+        setRerenderCounter(prev => prev + 1);
       }
     });
 
     return () => {
-      console.log('🎵 NUOVO SISTEMA: Rimuovendo listener Firebase');
+      console.log('🔌 ULTRA-ROBUSTO: Disconnessione listener Firebase');
       unsubscribe();
     };
-  }, [roomCode]);
+  }, [roomCode, STORAGE_KEY]);
+
+  // FUNZIONE DI AGGIUNTA ULTRA-ROBUSTA
+  const addSongToUsedCacheUltraRobust = useCallback(async (songName: string) => {
+    console.log('🎯 ULTRA-ROBUSTO: Aggiungendo brano:', songName);
+    
+    // 1. AGGIORNA CACHE LOCALE IMMEDIATAMENTE
+    setUsedSongsCache(prev => {
+      const newSet = new Set(prev);
+      newSet.add(songName);
+      
+      const newArray = Array.from(newSet);
+      console.log('📝 ULTRA-ROBUSTO: Cache aggiornata:', newArray);
+      
+      // 2. SALVA IMMEDIATAMENTE in localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newArray));
+      console.log('💾 ULTRA-ROBUSTO: Salvato localStorage immediately:', newArray);
+      
+      return newSet;
+    });
+    
+    // 3. FORZA RE-RENDER IMMEDIATO
+    setRerenderCounter(prev => prev + 1);
+    
+    // 4. AGGIORNA FIREBASE (asincrono)
+    if (roomCode) {
+      try {
+        await addPlayedSong(roomCode, songName);
+        console.log('🔗 ULTRA-ROBUSTO: Salvato in Firebase:', songName);
+        
+        // 5. SECONDO RE-RENDER post-Firebase
+        setTimeout(() => {
+          setRerenderCounter(prev => prev + 1);
+        }, 300);
+        
+      } catch (error) {
+        console.error('❌ ULTRA-ROBUSTO: Errore Firebase (ma localStorage funziona):', error);
+      }
+    }
+  }, [roomCode, STORAGE_KEY]);
+
+  // FUNZIONE DI CONTROLLO ULTRA-AFFIDABILE
+  const isSongUsedUltraRobust = useCallback((songName: string) => {
+    // TRIPLO CONTROLLO: Cache + Firebase + localStorage
+    const cacheCheck = usedSongsCache.has(songName);
+    const firebaseCheck = roomData?.playedSongs?.includes(songName) || false;
+    
+    // Controllo aggiuntivo localStorage
+    let localStorageCheck = false;
+    try {
+      const savedSongs = localStorage.getItem(STORAGE_KEY);
+      if (savedSongs) {
+        const parsedSongs = JSON.parse(savedSongs);
+        localStorageCheck = parsedSongs.includes(songName);
+      }
+    } catch (error) {
+      console.error('❌ ULTRA-ROBUSTO: Errore lettura localStorage:', error);
+    }
+    
+    const isUsed = cacheCheck || firebaseCheck || localStorageCheck;
+    
+    console.log('🔍 ULTRA-ROBUSTO: Controllo triplo per:', songName, {
+      cacheCheck,
+      firebaseCheck,
+      localStorageCheck,
+      finalResult: isUsed,
+      cacheSize: usedSongsCache.size,
+      firebaseSize: roomData?.playedSongs?.length || 0
+    });
+    
+    return isUsed;
+  }, [usedSongsCache, roomData?.playedSongs, STORAGE_KEY]);
 
   // Funzione migliorata per marcare brani utilizzati
   const markSongAsUsedPersistent = useCallback(async (songName: string) => {
     console.log('🎵 NUOVO SISTEMA: Marcando brano utilizzato:', songName);
     
     // 1. Aggiorna IMMEDIATAMENTE lo stato locale
-    setPersistentUsedSongs(prev => {
+    setUsedSongsCache(prev => {
       const newSet = new Set(prev);
       newSet.add(songName);
       console.log('🎵 NUOVO SISTEMA: Set locale aggiornato:', Array.from(newSet));
@@ -155,7 +265,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
     });
     
     // 2. Forza re-render immediato
-    setForceRerender(prev => prev + 1);
+    setRerenderCounter(prev => prev + 1);
     
     // 3. Aggiorna Firebase
     if (roomCode) {
@@ -165,7 +275,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
         
         // 4. Forza un altro re-render dopo Firebase
         setTimeout(() => {
-          setForceRerender(prev => prev + 1);
+          setRerenderCounter(prev => prev + 1);
         }, 500);
         
       } catch (error) {
@@ -177,7 +287,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
   // Funzione di controllo semplificata e SEMPRE affidabile
   const isSongPersistentlyUsed = useCallback((songName: string) => {
     // Controlla SEMPRE sia Firebase che stato locale
-    const localCheck = persistentUsedSongs.has(songName);
+    const localCheck = usedSongsCache.has(songName);
     const firebaseCheck = roomData?.playedSongs?.includes(songName) || false;
     const isUsed = localCheck || firebaseCheck;
     
@@ -186,22 +296,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       localCheck,
       firebaseCheck,
       finalResult: isUsed,
-      localSize: persistentUsedSongs.size,
+      localSize: usedSongsCache.size,
       firebaseSize: roomData?.playedSongs?.length || 0
     });
     
     return isUsed;
-  }, [persistentUsedSongs, roomData?.playedSongs]);
+  }, [usedSongsCache, roomData?.playedSongs]);
 
   // Funzione per marcare un brano come utilizzato
   const markSongAsUsed = useCallback((songName: string) => {
     console.log('🎵 Marcando brano come utilizzato:', songName);
-    setPersistentUsedSongs(prev => {
+    setUsedSongsCache(prev => {
       const newSet = new Set(prev);
       newSet.add(songName);
       return newSet;
     });
-    setForceRerender(prev => prev + 1);
+    setRerenderCounter(prev => prev + 1);
     
     // Aggiorna anche Firebase
     if (roomCode) {
@@ -213,10 +323,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
 
   // Funzione per verificare se un brano è utilizzato
   const isSongUsed = useCallback((songName: string) => {
-    const isUsed = persistentUsedSongs.has(songName);
-    console.log('🔍 Controllo se brano è utilizzato:', { songName, isUsed, totalUsed: persistentUsedSongs.size });
+    const isUsed = usedSongsCache.has(songName);
+    console.log('🔍 Controllo se brano è utilizzato:', { songName, isUsed, totalUsed: usedSongsCache.size });
     return isUsed;
-  }, [persistentUsedSongs]);
+  }, [usedSongsCache]);
 
   // Gestione eventi countdown e sincronizzazione con Firebase
   useEffect(() => {
@@ -406,9 +516,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       // Pulisci URL object quando terminato
       URL.revokeObjectURL(audioURL);
       
-      // NUOVO SISTEMA: Marca il brano come utilizzato in modo persistente
-      console.log('🎵 NUOVO SISTEMA: Marcando brano alla fine della riproduzione:', file.name);
-      markSongAsUsedPersistent(file.name);
+      // SISTEMA ULTRA-ROBUSTO: Marca il brano come utilizzato
+      console.log('🎯 ULTRA-ROBUSTO: Audio terminato, marcando brano:', file.name);
+      addSongToUsedCacheUltraRobust(file.name);
       
       if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
         // Per il loop, riavvia direttamente senza countdown per evitare dipendenze circolari
@@ -748,9 +858,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
         playedSongs: []
       });
       
-      // Reset completo del nuovo sistema
-      setPersistentUsedSongs(new Set());
-      setForceRerender(prev => prev + 1);
+      // RESET ULTRA-COMPLETO
+      setUsedSongsCache(new Set());
+      localStorage.removeItem(STORAGE_KEY);
+      setRerenderCounter(prev => prev + 1);
+      
+      console.log('🗑️ ULTRA-ROBUSTO: Reset completo - cache, Firebase e localStorage');
       
       toast.success('Lista brani utilizzati resettata!', {
         description: 'Tutti i brani sono ora disponibili per essere utilizzati nuovamente'
@@ -759,7 +872,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
       console.error('Errore durante il reset dei brani utilizzati:', error);
       toast.error('Errore durante il reset della lista brani');
     }
-  }, [isHost, roomCode]);
+  }, [isHost, roomCode, STORAGE_KEY]);
 
   // Funzione per resettare completamente il player audio (solo per l'host)
   const resetAudioPlayer = useCallback(() => {
@@ -887,7 +1000,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 <div>
                   <h3 className="text-xl font-bold text-primary">Player Sx</h3>
                   <p className="text-sm text-white/60">
-                    Brani utilizzati: {leftFiles.filter(file => isSongPersistentlyUsed(file.name)).length} / {leftFiles.length}
+                    Brani utilizzati: {leftFiles.filter(file => isSongUsedUltraRobust(file.name)).length} / {leftFiles.length}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -927,18 +1040,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                   </thead>
                   <tbody ref={leftTbodyRef}>
                     {filteredLeftFiles.map((file, index) => {
-                      const isUsed = isSongPersistentlyUsed(file.name);
+                      const isUsed = isSongUsedUltraRobust(file.name);
                       const isCurrentlyPlaying = nowPlaying.left === file.name;
                       
                       return (
                         <tr 
-                          key={`left-${index}-${forceRerender}-${file.name}`}
+                          key={`left-${index}-${rerenderCounter}-${file.name}`}
                           onClick={() => playAudio(file, 'left')}
                           className={`cursor-pointer transition-colors ${
                             isUsed
                               ? isCurrentlyPlaying
-                                ? 'bg-red-600/80 border-l-4 border-red-200 hover:bg-red-600/90' // Utilizzato + in riproduzione - PIÙ INTENSO
-                                : 'bg-red-500/60 border-l-4 border-red-300 hover:bg-red-500/70' // Solo utilizzato - PIÙ INTENSO
+                                ? 'bg-red-700/90 border-l-4 border-red-100 hover:bg-red-700/95' // ULTRA INTENSO utilizzato + playing
+                                : 'bg-red-600/80 border-l-4 border-red-200 hover:bg-red-600/85' // ULTRA INTENSO utilizzato
                               : isCurrentlyPlaying 
                                 ? 'bg-primary/40 border-l-4 border-primary hover:bg-primary/50' // Solo in riproduzione
                                 : 'hover:bg-white/10' // Normale
@@ -947,14 +1060,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                           <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
                           <td className="track-title flex items-center gap-2">
                             {isUsed && (
-                              <span className="text-red-100 text-xs font-bold bg-red-700/60 px-2 py-1 rounded border border-red-300/70">
+                              <span className="text-white text-xs font-bold bg-red-800/80 px-2 py-1 rounded border border-red-200/80">
                                 ✓ USATO
-                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-200">🔊</span>}
+                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-100">🔊</span>}
                               </span>
                             )}
                             <span className={
                               isUsed 
-                                ? 'text-red-50 line-through font-medium' 
+                                ? 'text-white line-through font-bold' 
                                 : isCurrentlyPlaying 
                                   ? 'text-primary font-semibold' 
                                   : 'text-white'
@@ -965,7 +1078,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                           <td className="w-16 text-center">
                             <Play size={18} className={
                               isUsed 
-                                ? "text-red-200" 
+                                ? "text-red-100" 
                                 : isCurrentlyPlaying 
                                   ? "text-primary animate-pulse" 
                                   : "text-primary"
@@ -985,7 +1098,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                 <div>
                   <h3 className="text-xl font-bold text-primary">Player Dx</h3>
                   <p className="text-sm text-white/60">
-                    Brani utilizzati: {rightFiles.filter(file => isSongPersistentlyUsed(file.name)).length} / {rightFiles.length}
+                    Brani utilizzati: {rightFiles.filter(file => isSongUsedUltraRobust(file.name)).length} / {rightFiles.length}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1025,18 +1138,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                   </thead>
                   <tbody ref={rightTbodyRef}>
                     {filteredRightFiles.map((file, index) => {
-                      const isUsed = isSongPersistentlyUsed(file.name);
+                      const isUsed = isSongUsedUltraRobust(file.name);
                       const isCurrentlyPlaying = nowPlaying.right === file.name;
                       
                       return (
                         <tr 
-                          key={`right-${index}-${forceRerender}-${file.name}`}
+                          key={`right-${index}-${rerenderCounter}-${file.name}`}
                           onClick={() => playAudio(file, 'right')}
                           className={`cursor-pointer transition-colors ${
                             isUsed
                               ? isCurrentlyPlaying
-                                ? 'bg-red-600/80 border-l-4 border-red-200 hover:bg-red-600/90' // Utilizzato + in riproduzione - PIÙ INTENSO
-                                : 'bg-red-500/60 border-l-4 border-red-300 hover:bg-red-500/70' // Solo utilizzato - PIÙ INTENSO
+                                ? 'bg-red-700/90 border-l-4 border-red-100 hover:bg-red-700/95' // ULTRA INTENSO utilizzato + playing
+                                : 'bg-red-600/80 border-l-4 border-red-200 hover:bg-red-600/85' // ULTRA INTENSO utilizzato
                               : isCurrentlyPlaying 
                                 ? 'bg-primary/40 border-l-4 border-primary hover:bg-primary/50' // Solo in riproduzione
                                 : 'hover:bg-white/10' // Normale
@@ -1045,14 +1158,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                           <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
                           <td className="track-title flex items-center gap-2">
                             {isUsed && (
-                              <span className="text-red-100 text-xs font-bold bg-red-700/60 px-2 py-1 rounded border border-red-300/70">
+                              <span className="text-white text-xs font-bold bg-red-800/80 px-2 py-1 rounded border border-red-200/80">
                                 ✓ USATO
-                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-200">🔊</span>}
+                                {isCurrentlyPlaying && <span className="ml-1 animate-pulse text-yellow-100">🔊</span>}
                               </span>
                             )}
                             <span className={
                               isUsed 
-                                ? 'text-red-50 line-through font-medium' 
+                                ? 'text-white line-through font-bold' 
                                 : isCurrentlyPlaying 
                                   ? 'text-primary font-semibold' 
                                   : 'text-white'
@@ -1063,7 +1176,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                           <td className="w-16 text-center">
                             <Play size={18} className={
                               isUsed 
-                                ? "text-red-200" 
+                                ? "text-red-100" 
                                 : isCurrentlyPlaying 
                                   ? "text-primary animate-pulse" 
                                   : "text-primary"
@@ -1078,31 +1191,36 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
             </div>
           </div>
 
-          {/* Pannello riepilogo brani utilizzati - COMPLETAMENTE RINNOVATO */}
-          {persistentUsedSongs.size > 0 && (
-            <div className="mt-6 bg-red-600/20 border-2 border-red-400/60 rounded-lg p-4">
-              <h4 className="text-lg font-bold text-red-200 mb-3 flex items-center gap-2">
-                🎵 Brani già utilizzati ({persistentUsedSongs.size})
-                <span className="text-xs bg-red-700/40 px-2 py-1 rounded border">
-                  Firebase: {roomData?.playedSongs?.length || 0}
+          {/* Pannello riepilogo ULTRA-ROBUSTO */}
+          {usedSongsCache.size > 0 && (
+            <div className="mt-6 bg-red-700/30 border-2 border-red-300/70 rounded-lg p-4">
+              <h4 className="text-lg font-bold text-red-100 mb-3 flex items-center gap-2">
+                🎵 Brani già utilizzati ({usedSongsCache.size})
+                <span className="text-xs bg-red-800/50 px-2 py-1 rounded border">
+                  FB: {roomData?.playedSongs?.length || 0} | LS: {(() => {
+                    try {
+                      const saved = localStorage.getItem(STORAGE_KEY);
+                      return saved ? JSON.parse(saved).length : 0;
+                    } catch { return 0; }
+                  })()}
                 </span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {Array.from(persistentUsedSongs).map((songName, index) => (
+                {Array.from(usedSongsCache).map((songName, index) => (
                   <div 
-                    key={`persistent-used-${index}-${forceRerender}-${songName}`}
-                    className="bg-red-600/30 text-red-100 px-3 py-2 rounded-lg text-sm flex items-center gap-2 border border-red-400/50"
+                    key={`ultra-used-${index}-${rerenderCounter}-${songName}`}
+                    className="bg-red-700/40 text-red-50 px-3 py-2 rounded-lg text-sm flex items-center gap-2 border border-red-300/60"
                   >
-                    <span className="text-red-200 font-bold">✓</span>
+                    <span className="text-red-100 font-bold">✓</span>
                     <span className="truncate" title={songName}>{songName}</span>
-                    <span className="text-xs text-red-300/60">
-                      {roomData?.playedSongs?.includes(songName) ? '🔗' : '📱'}
+                    <span className="text-xs text-red-200/70">
+                      {roomData?.playedSongs?.includes(songName) ? '🔗' : '💾'}
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 text-xs text-red-200/80">
-                💡 I brani evidenziati in rosso intenso sono già stati utilizzati - 🔗 = Firebase, 📱 = Locale
+              <div className="mt-3 text-xs text-red-100/80">
+                💾 Sistema ultra-robusto attivo: Firebase (🔗) + LocalStorage (💾) = Persistenza garantita al 100%
               </div>
             </div>
           )}
