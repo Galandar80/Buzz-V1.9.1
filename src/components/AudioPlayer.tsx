@@ -806,22 +806,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                         key={index} 
                         onClick={() => playAudio(file, 'left')}
                         className={`cursor-pointer transition-colors ${
-                          nowPlaying.left === file.name 
-                            ? 'bg-primary/30 border-l-4 border-primary' 
-                            : isSongPlayed(file.name) 
-                              ? 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' 
-                              : 'hover:bg-white/10'
+                          isSongPlayed(file.name)
+                            ? nowPlaying.left === file.name
+                              ? 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Brano utilizzato + in riproduzione
+                              : 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' // Solo utilizzato
+                            : nowPlaying.left === file.name 
+                              ? 'bg-primary/30 border-l-4 border-primary' // Solo in riproduzione (non utilizzato)
+                              : 'hover:bg-white/10' // Normale
                         }`}
                       >
                         <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
                         <td className="track-title flex items-center gap-2">
                           {isSongPlayed(file.name) && (
-                            <span className="text-red-400 text-xs font-bold">✓ USATO</span>
+                            <span className="text-red-400 text-xs font-bold bg-red-500/20 px-2 py-1 rounded">
+                              ✓ USATO
+                              {nowPlaying.left === file.name && <span className="ml-1 animate-pulse">🔊</span>}
+                            </span>
                           )}
-                          <span className={isSongPlayed(file.name) ? 'text-red-200 line-through' : ''}>{file.name}</span>
+                          <span className={
+                            isSongPlayed(file.name) 
+                              ? 'text-red-200 line-through' 
+                              : nowPlaying.left === file.name 
+                                ? 'text-primary font-semibold' 
+                                : ''
+                          }>
+                            {file.name}
+                          </span>
                         </td>
                         <td className="w-16 text-center">
-                          <Play size={18} className={isSongPlayed(file.name) ? "text-red-400" : "text-primary"} />
+                          <Play size={18} className={
+                            isSongPlayed(file.name) 
+                              ? "text-red-400" 
+                              : nowPlaying.left === file.name 
+                                ? "text-primary animate-pulse" 
+                                : "text-primary"
+                          } />
                         </td>
                       </tr>
                     ))}
@@ -880,22 +899,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
                         key={index} 
                         onClick={() => playAudio(file, 'right')}
                         className={`cursor-pointer transition-colors ${
-                          nowPlaying.right === file.name 
-                            ? 'bg-primary/30 border-l-4 border-primary' 
-                            : isSongPlayed(file.name) 
-                              ? 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' 
-                              : 'hover:bg-white/10'
+                          isSongPlayed(file.name)
+                            ? nowPlaying.right === file.name
+                              ? 'bg-red-500/50 border-l-4 border-red-400 hover:bg-red-500/60' // Brano utilizzato + in riproduzione
+                              : 'bg-red-500/30 border-l-4 border-red-500 hover:bg-red-500/40' // Solo utilizzato
+                            : nowPlaying.right === file.name 
+                              ? 'bg-primary/30 border-l-4 border-primary' // Solo in riproduzione (non utilizzato)
+                              : 'hover:bg-white/10' // Normale
                         }`}
                       >
                         <td className="w-10 text-center text-muted-foreground/60">{index + 1}</td>
                         <td className="track-title flex items-center gap-2">
                           {isSongPlayed(file.name) && (
-                            <span className="text-red-400 text-xs font-bold">✓ USATO</span>
+                            <span className="text-red-400 text-xs font-bold bg-red-500/20 px-2 py-1 rounded">
+                              ✓ USATO
+                              {nowPlaying.right === file.name && <span className="ml-1 animate-pulse">🔊</span>}
+                            </span>
                           )}
-                          <span className={isSongPlayed(file.name) ? 'text-red-200 line-through' : ''}>{file.name}</span>
+                          <span className={
+                            isSongPlayed(file.name) 
+                              ? 'text-red-200 line-through' 
+                              : nowPlaying.right === file.name 
+                                ? 'text-primary font-semibold' 
+                                : ''
+                          }>
+                            {file.name}
+                          </span>
                         </td>
                         <td className="w-16 text-center">
-                          <Play size={18} className={isSongPlayed(file.name) ? "text-red-400" : "text-primary"} />
+                          <Play size={18} className={
+                            isSongPlayed(file.name) 
+                              ? "text-red-400" 
+                              : nowPlaying.right === file.name 
+                                ? "text-primary animate-pulse" 
+                                : "text-primary"
+                          } />
                         </td>
                       </tr>
                     ))}
@@ -905,20 +943,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ onAudioPause }) => {
             </div>
           </div>
 
-          {/* Volume Control - Lo spostiamo nella barra fissa */}
-          {/* <div className="mt-6 flex items-center gap-4">
-            <span className="text-sm">Volume:</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={masterVolume}
-              onChange={handleVolumeChange}
-              className="flex-1"
-            />
-            <span className="text-sm">{Math.round(masterVolume * 100)}%</span>
-          </div> */}
+          {/* Pannello riepilogo brani utilizzati */}
+          {(roomData?.playedSongs?.length ?? 0) > 0 && (
+            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+              <h4 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
+                🎵 Brani già utilizzati ({roomData?.playedSongs?.length ?? 0})
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {roomData?.playedSongs?.map((songName, index) => (
+                  <div 
+                    key={index}
+                    className="bg-red-500/20 text-red-200 px-3 py-2 rounded-lg text-sm flex items-center gap-2"
+                  >
+                    <span className="text-red-400 font-bold">✓</span>
+                    <span className="truncate" title={songName}>{songName}</span>
+                  </div>
+                )) ?? []}
+              </div>
+              <div className="mt-3 text-xs text-red-300/70">
+                💡 Suggerimento: I brani evidenziati in rosso nelle liste sopra sono già stati utilizzati
+              </div>
+            </div>
+          )}
         </div>
       )}
 
