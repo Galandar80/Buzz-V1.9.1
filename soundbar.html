@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartoon Dual Audio Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6c63ff;
+            --secondary: #43e97b;
+            --accent: #fd5e53;
+            --bg-gradient: linear-gradient(120deg, #232526 0%, #6c63ff 100%);
+            --glass: rgba(255,255,255,0.13);
+            --glass-border: rgba(255,255,255,0.18);
+            --text-main: #fff;
+            --text-dark: #232526;
+            --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+            --btn-shadow: 0 2px 8px 0 rgba(76, 110, 245, 0.10);
+            --btn-hover: #fff;
+            --row-zebra: rgba(255,255,255,0.07);
+            --row-hover: #6c63ff33;
+            --badge-bg: #fd5e53;
+        }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 0;
+            background: radial-gradient(circle at 20% 30%, #43e97b55 0%, transparent 60%),
+                        radial-gradient(circle at 80% 70%, #fd5e5355 0%, transparent 60%),
+                        var(--bg-gradient);
+            animation: bgmove 12s linear infinite alternate;
+        }
+        @keyframes bgmove {
+            0% { background-position: 20% 30%, 80% 70%, 0 0; }
+            100% { background-position: 30% 40%, 70% 60%, 0 0; }
+        }
+        .topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(30,30,40,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 1002;
+            box-shadow: 0 2px 12px #0002;
+        }
+        .topbar-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--primary);
+            text-shadow: 0 2px 8px #0005;
+        }
+        .theme-select {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .main-content {
+            margin-top: 90px;
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+        .audio-card {
+            background: var(--glass);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            padding: 32px 28px 28px 28px;
+            min-width: 340px;
+            max-width: 420px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            animation: fadein 1.2s cubic-bezier(.4,2,.6,1);
+        }
+        @keyframes fadein {
+            from { opacity: 0; transform: translateY(40px) scale(0.98); }
+            to { opacity: 1; transform: none; }
+        }
+        .audio-card .card-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--primary);
+            letter-spacing: 1px;
+        }
+        .audio-card .counter {
+            font-size: 1.1rem;
+            color: var(--secondary);
+            margin-bottom: 18px;
+            font-weight: 600;
+        }
+        .audio-card .search-bar {
+            width: 100%;
+            margin-bottom: 14px;
+            border-radius: 8px;
+            border: none;
+            padding: 10px 14px;
+            font-size: 1rem;
+            background: rgba(255,255,255,0.13);
+            color: var(--text-main);
+            outline: none;
+            box-shadow: 0 1px 4px #0001;
+        }
+        .audio-card .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .audio-card .actions .icon-btn {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+            box-shadow: var(--btn-shadow);
+        }
+        .audio-card .actions .icon-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .audio-card .now-playing {
+            margin: 10px 0 8px 0;
+            font-weight: 700;
+            color: var(--accent);
+            min-height: 24px;
+            text-align: center;
+        }
+        .audio-card .track-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 6px;
+            margin-top: 8px;
+        }
+        .audio-card .track-table th, .audio-card .track-table td {
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 1.05rem;
+        }
+        .audio-card .track-table th {
+            color: var(--primary);
+            font-weight: 700;
+            background: transparent;
+            border-bottom: 2px solid var(--glass-border);
+        }
+        .audio-card .track-table tr {
+            background: var(--glass);
+            border-radius: 12px;
+            transition: box-shadow 0.2s, background 0.2s, transform 0.15s;
+        }
+        .audio-card .track-table tr:nth-child(even) {
+            background: var(--row-zebra);
+        }
+        .audio-card .track-table tr:hover {
+            background: var(--row-hover);
+            box-shadow: 0 2px 16px #6c63ff44;
+            transform: scale(1.01);
+        }
+        .audio-card .track-table td {
+            border: none;
+            vertical-align: middle;
+        }
+        .audio-card .track-table .track-title {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+        }
+        .audio-card .track-table .now-playing-badge {
+            display: inline-block;
+            background: var(--badge-bg);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 700;
+            padding: 2px 8px;
+            margin-left: 8px;
+            animation: badgepop 1s infinite alternate;
+        }
+        @keyframes badgepop {
+            0% { box-shadow: 0 0 0 0 var(--badge-bg); }
+            100% { box-shadow: 0 0 8px 2px var(--badge-bg); }
+        }
+        .audio-card .track-table .play-btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: var(--btn-shadow);
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+        }
+        .audio-card .track-table .play-btn:hover {
+            background: var(--accent);
+            transform: scale(1.12);
+        }
+        .audio-card .load-btn {
+            background: var(--btn-bg3);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 10px 18px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            box-shadow: var(--btn-shadow);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .audio-card .load-btn:hover {
+            background: var(--accent);
+        }
+        .player-sticky {
+            position: fixed;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 98vw;
+            max-width: 520px;
+            background: var(--glass);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 18px 18px 0 0;
+            box-shadow: 0 -4px 32px #0005;
+            z-index: 1003;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 16px 24px 10px 18px;
+            animation: fadein 1.2s cubic-bezier(.4,2,.6,1);
+        }
+        .player-sticky .cover {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6c63ff 40%, #43e97b 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem;
+            color: #fff;
+            box-shadow: 0 2px 12px #6c63ff55;
+            animation: rotate 2.5s linear infinite;
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .player-sticky .info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .player-sticky .info .song-title {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .player-sticky .info .song-meta {
+            font-size: 0.95em;
+            color: var(--secondary);
+        }
+        .player-sticky .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .player-sticky .controls button {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: var(--btn-shadow);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .player-sticky .controls button:hover {
+            background: var(--accent);
+        }
+        .player-sticky .progress-wrapper {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+        }
+        .player-sticky .progress-bar {
+            height: 100%;
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 0 0 8px 8px;
+            outline: none;
+            margin: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+        .player-sticky .progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+        .player-sticky .progress-bar::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: none;
+        }
+        .player-sticky .volume {
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .player-sticky .volume input[type=range] {
+            width: 80px;
+            accent-color: var(--primary);
+        }
+        .error-message {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 2px 8px #0007;
+        }
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+                align-items: center;
+                gap: 18px;
+            }
+            .player-sticky {
+                max-width: 98vw;
+                padding: 10px 2vw 8px 2vw;
+            }
+        }
+        @media (max-width: 600px) {
+            .audio-card {
+                min-width: 90vw;
+                max-width: 98vw;
+                padding: 18px 6vw 18px 6vw;
+            }
+            .player-sticky {
+                min-width: 90vw;
+                padding: 8px 2vw 6px 2vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span class="topbar-title">Cartoon Dual Audio Player</span>
+        <select id="theme-select" class="theme-select">
+            <option value="dark">Scuro</option>
+            <option value="light">Chiaro</option>
+            <option value="colorful">Colorato</option>
+        </select>
+    </div>
+    <div class="error-message" id="error-message"></div>
+    <div class="main-content">
+        <div class="audio-card" id="left-card">
+            <div class="card-title">MIDI MP3 CARTOON</div>
+            <div class="counter" id="left-counter">0 brani</div>
+            <button class="load-btn" id="load-left">Carica AUDIO MIDI CARTOON</button>
+            <input id="search-left" class="search-bar" type="text" placeholder="Cerca...">
+            <div class="actions">
+                <button id="shuffle-left" title="Riproduci casuale" class="icon-btn">
+                    <svg width="22" height="22" viewBox="0 0 20 20"><path fill="currentColor" d="M16.5 3h-2a.5.5 0 0 0 0 1h1.293l-4.147 4.146a.5.5 0 1 0 .708.708L16.5 4.707V6a.5.5 0 0 0 1 0V3.5a.5.5 0 0 0-.5-.5zm-13 13h2a.5.5 0 0 0 0-1H4.207l4.147-4.146a.5.5 0 1 0-.708-.708L3.5 15.293V14a.5.5 0 0 0-1 0v2.5a.5.5 0 0 0 .5.5zm13-2.5a.5.5 0 0 0-1 0v1.293l-4.146-4.147a.5.5 0 1 0-.708.708L15.293 16H14a.5.5 0 0 0 0 1h2.5a.5.5 0 0 0 .5-.5V13.5zm-13-11A.5.5 0 0 0 3.5 3v1.293l4.146 4.147a.5.5 0 1 0 .708-.708L4.707 3H6a.5.5 0 0 0 0-1H3.5z"/></svg>
+                </button>
+                <button id="loop-left" title="Ripeti brano" class="icon-btn">
+                    <svg width="22" height="22" viewBox="0 0 20 20"><path fill="currentColor" d="M4 10a6 6 0 0 1 6-6h3.586l-1.293-1.293a1 1 0 1 1 1.414-1.414l3 3a1 1 0 0 1 0 1.414l-3 3a1 1 0 0 1-1.414-1.414L13.586 5H10a4 4 0 1 0 0 8h6a1 1 0 1 1 0 2h-3.586l1.293 1.293a1 1 0 1 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414l3-3a1 1 0 0 1 1.414 1.414L13.414 11H16a6 6 0 0 1-6 6H6.414l1.293 1.293a1 1 0 1 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414l3-3a1 1 0 0 1 1.414 1.414L6.414 15H10a4 4 0 1 0 0-8H4a1 1 0 1 1 0-2h3.586L6.293 3.293A1 1 0 1 1 7.707 1.88l3 3a1 1 0 0 1 0 1.414l-3 3A1 1 0 0 1 4 10z"/></svg>
+                </button>
+            </div>
+            <div class="now-playing" id="now-playing-left"></div>
+            <table class="track-table" id="left-table">
+                <thead>
+                    <tr><th>#</th><th>Titolo</th><th>Play</th></tr>
+                </thead>
+                <tbody id="left-tbody"></tbody>
+            </table>
+        </div>
+        <div class="audio-card" id="right-card">
+            <div class="card-title">CARTONI AUDIO</div>
+            <div class="counter" id="right-counter">0 brani</div>
+            <button class="load-btn" id="load-right">Carica AUDIO CARTONI</button>
+            <input id="search-right" class="search-bar" type="text" placeholder="Cerca...">
+            <div class="actions">
+                <button id="shuffle-right" title="Riproduci casuale" class="icon-btn">
+                    <svg width="22" height="22" viewBox="0 0 20 20"><path fill="currentColor" d="M16.5 3h-2a.5.5 0 0 0 0 1h1.293l-4.147 4.146a.5.5 0 1 0 .708.708L16.5 4.707V6a.5.5 0 0 0 1 0V3.5a.5.5 0 0 0-.5-.5zm-13 13h2a.5.5 0 0 0 0-1H4.207l4.147-4.146a.5.5 0 1 0-.708-.708L3.5 15.293V14a.5.5 0 0 0-1 0v2.5a.5.5 0 0 0 .5.5zm13-2.5a.5.5 0 0 0-1 0v1.293l-4.146-4.147a.5.5 0 1 0-.708.708L15.293 16H14a.5.5 0 0 0 0 1h2.5a.5.5 0 0 0 .5-.5V13.5zm-13-11A.5.5 0 0 0 3.5 3v1.293l4.146 4.147a.5.5 0 1 0 .708-.708L4.707 3H6a.5.5 0 0 0 0-1H3.5z"/></svg>
+                </button>
+                <button id="loop-right" title="Ripeti brano" class="icon-btn">
+                    <svg width="22" height="22" viewBox="0 0 20 20"><path fill="currentColor" d="M4 10a6 6 0 0 1 6-6h3.586l-1.293-1.293a1 1 0 1 1 1.414-1.414l3 3a1 1 0 0 1 0 1.414l-3 3a1 1 0 0 1-1.414-1.414L13.586 5H10a4 4 0 1 0 0 8h6a1 1 0 1 1 0 2h-3.586l1.293 1.293a1 1 0 1 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414l3-3a1 1 0 0 1 1.414 1.414L13.414 11H16a6 6 0 0 1-6 6H6.414l1.293 1.293a1 1 0 1 1-1.414 1.414l-3-3a1 1 0 0 1 0-1.414l3-3a1 1 0 0 1 1.414 1.414L6.414 15H10a4 4 0 1 0 0-8H4a1 1 0 1 1 0-2h3.586L6.293 3.293A1 1 0 1 1 7.707 1.88l3 3a1 1 0 0 1 0 1.414l-3 3A1 1 0 0 1 4 10z"/></svg>
+                </button>
+            </div>
+            <div class="now-playing" id="now-playing-right"></div>
+            <table class="track-table" id="right-table">
+                <thead>
+                    <tr><th>#</th><th>Titolo</th><th>Play</th></tr>
+                </thead>
+                <tbody id="right-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="player-sticky" id="player-sticky" style="display:none;">
+        <div class="cover" id="player-cover">🎵</div>
+        <div class="info">
+            <div class="song-title" id="player-title"></div>
+            <div class="song-meta" id="player-meta"></div>
+        </div>
+        <div class="controls">
+            <button id="player-pause" title="Pausa/Play">
+                <svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/><rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/></svg>
+            </button>
+            <button id="player-stop" title="Stop">
+                <svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2" fill="currentColor"/></svg>
+            </button>
+        </div>
+        <div class="volume">
+            <span id="vol-mute">🔈</span>
+            <input type="range" class="volume-slider" min="0" max="1" step="0.01" value="0.5">
+            <span id="vol-max">🔊</span>
+        </div>
+        <div class="progress-wrapper">
+            <input type="range" class="progress-bar" id="progress-bar" min="0" max="100" value="0">
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const leftTbody = document.getElementById('left-tbody');
+            const rightTbody = document.getElementById('right-tbody');
+            const loadLeftBtn = document.getElementById('load-left');
+            const loadRightBtn = document.getElementById('load-right');
+            const nowPlayingLeft = document.getElementById('now-playing-left');
+            const nowPlayingRight = document.getElementById('now-playing-right');
+            const leftCounter = document.getElementById('left-counter');
+            const rightCounter = document.getElementById('right-counter');
+            const playerSticky = document.getElementById('player-sticky');
+            const playerTitle = document.getElementById('player-title');
+            const playerMeta = document.getElementById('player-meta');
+            const playerCover = document.getElementById('player-cover');
+            const playerPause = document.getElementById('player-pause');
+            const playerStop = document.getElementById('player-stop');
+            const progressBar = document.getElementById('progress-bar');
+            const errorMessage = document.getElementById('error-message');
+
+            let masterVolume = 0.5;
+            const volumeSlider = document.querySelector('.volume-slider');
+            volumeSlider.addEventListener('input', (e) => {
+                masterVolume = parseFloat(e.target.value);
+                updateAllVolumes();
+            });
+
+            function updateAllVolumes() {
+                if (currentAudio) {
+                    currentAudio.volume = masterVolume;
+                }
+            }
+
+            function selectAudioFiles(callback) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.mp3,.wav,.ogg';
+                input.multiple = true;
+                input.webkitdirectory = true;
+                input.style.display = 'none';
+                document.body.appendChild(input);
+                input.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files).filter(file => /\.(mp3|wav|ogg)$/i.test(file.name));
+                    document.body.removeChild(input);
+                    callback(files);
+                });
+                input.click();
+            }
+
+            // Liste dei file in memoria
+            let leftFiles = [];
+            let rightFiles = [];
+
+            function createButtons(files, tbody, column, filter = '') {
+                tbody.innerHTML = '';
+                let filtered = files.filter(file => file.name.toLowerCase().includes(filter.toLowerCase()));
+                
+                if (column === 'left') leftCounter.textContent = filtered.length + ' brani';
+                if (column === 'right') rightCounter.textContent = filtered.length + ' brani';
+                
+                filtered.forEach((file, idx) => {
+                    const row = document.createElement('tr');
+                    row.dataset.filename = file.name;
+                    
+                    const numCell = document.createElement('td');
+                    numCell.textContent = (idx + 1);
+                    
+                    const titleCell = document.createElement('td');
+                    let title = file.name.replace(/\.(mp3|wav|ogg)$/i, '');
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'track-title';
+                    titleSpan.textContent = title;
+                    titleCell.appendChild(titleSpan);
+                    
+                    const playCell = document.createElement('td');
+                    const playBtn = document.createElement('button');
+                    playBtn.className = 'play-btn';
+                    playBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="6,4 14,10 6,16" fill="currentColor"/></svg>';
+                    playBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        playAudio(file, row, column);
+                    };
+                    playCell.appendChild(playBtn);
+                    
+                    row.appendChild(numCell);
+                    row.appendChild(titleCell);
+                    row.appendChild(playCell);
+                    
+                    row.onclick = () => playAudio(file, row, column);
+                    
+                    tbody.appendChild(row);
+                });
+            }
+
+            function setupDragAndDrop(tbody, column) {
+                const table = tbody.closest('table');
+                table.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    table.classList.add('dragover');
+                });
+                table.addEventListener('dragleave', e => {
+                    e.preventDefault();
+                    table.classList.remove('dragover');
+                });
+                table.addEventListener('drop', e => {
+                    e.preventDefault();
+                    table.classList.remove('dragover');
+                    const items = e.dataTransfer.items;
+                    let files = [];
+                    if (items) {
+                        for (let i = 0; i < items.length; i++) {
+                            const item = items[i].webkitGetAsEntry();
+                            if (item) traverseFileTree(item, f => files.push(f));
+                        }
+                        setTimeout(() => {
+                            files = files.filter(f => /\.(mp3|wav|ogg)$/i.test(f.name));
+                            if (column === 'left') {
+                                leftFiles = files;
+                                createButtons(leftFiles, leftTbody, 'left', document.getElementById('search-left').value);
+                            } else {
+                                rightFiles = files;
+                                createButtons(rightFiles, rightTbody, 'right', document.getElementById('search-right').value);
+                            }
+                        }, 500);
+                    }
+                });
+            }
+            
+            function traverseFileTree(item, callback) {
+                if (item.isFile) {
+                    item.file(callback);
+                } else if (item.isDirectory) {
+                    const dirReader = item.createReader();
+                    dirReader.readEntries(entries => {
+                        entries.forEach(entry => traverseFileTree(entry, callback));
+                    });
+                }
+            }
+            
+            setupDragAndDrop(leftTbody, 'left');
+            setupDragAndDrop(rightTbody, 'right');
+
+            let currentAudio = null;
+            let currentRow = null;
+            let fadeInterval = null;
+            let currentColumn = null;
+            let progressUpdater = null;
+
+            // Esponi currentAudio globalmente
+            window.currentAudio = null;
+
+            function fadeIn(audio, row, callback) {
+                audio.volume = 0;
+                audio.play();
+                
+                addNowPlayingBadge(row);
+                
+                let vol = 0;
+                fadeInterval = setInterval(() => {
+                    if (vol < masterVolume) {
+                        vol = Math.min(vol + 0.05, masterVolume);
+                        audio.volume = vol;
+                    } else {
+                        clearInterval(fadeInterval);
+                        fadeInterval = null;
+                        if (callback) callback();
+                    }
+                }, 50);
+            }
+
+            function fadeOut(audio, row, callback) {
+                let vol = audio.volume;
+                fadeInterval = setInterval(() => {
+                    if (vol > 0.05) {
+                        vol = Math.max(vol - 0.05, 0);
+                        audio.volume = vol;
+                    } else {
+                        audio.volume = 0;
+                        audio.pause();
+                        
+                        removeNowPlayingBadge();
+                        
+                        clearInterval(fadeInterval);
+                        fadeInterval = null;
+                        if (callback) callback();
+                    }
+                }, 50);
+            }
+            
+            function addNowPlayingBadge(row) {
+                removeNowPlayingBadge();
+                
+                row.classList.add('playing');
+                
+                const titleCell = row.querySelector('td:nth-child(2)');
+                const badge = document.createElement('span');
+                badge.className = 'now-playing-badge';
+                badge.textContent = 'In ascolto';
+                titleCell.appendChild(badge);
+                
+                const playBtn = row.querySelector('.play-btn');
+                if (playBtn) {
+                    playBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/><rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/></svg>';
+                }
+            }
+            
+            function removeNowPlayingBadge() {
+                document.querySelectorAll('.now-playing-badge').forEach(b => b.remove());
+                document.querySelectorAll('tr.playing').forEach(r => r.classList.remove('playing'));
+                document.querySelectorAll('.play-btn').forEach(b => {
+                    b.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="6,4 14,10 6,16" fill="currentColor"/></svg>';
+                });
+            }
+
+            function showError(msg) {
+                errorMessage.textContent = msg;
+                errorMessage.style.display = 'block';
+                setTimeout(() => { errorMessage.style.display = 'none'; }, 4000);
+            }
+
+            function playAudio(file, btn, column) {
+                if (currentAudio && currentBtn === btn && !currentAudio.paused) {
+                    if (fadeInterval) clearInterval(fadeInterval);
+                    fadeOut(currentAudio, currentBtn, () => {
+                        stopProgressBar();
+                        currentAudio = null;
+                        currentBtn = null;
+                        updateNowPlaying('', column);
+                    });
+                    return;
+                }
+                if (currentAudio && !currentAudio.paused) {
+                    if (fadeInterval) clearInterval(fadeInterval);
+                    fadeOut(currentAudio, currentBtn, () => {
+                        startNewAudio(file, btn, column);
+                    });
+                } else {
+                    startNewAudio(file, btn, column);
+                }
+            }
+
+            function startNewAudio(file, btn, column) {
+                document.querySelectorAll('.track-btn').forEach(b => b.classList.remove('playing'));
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+                const audio = new Audio(URL.createObjectURL(file));
+                audio.onerror = () => {
+                    showError('Errore: il file non può essere riprodotto.');
+                    btn.classList.remove('playing');
+                    stopProgressBar();
+                    updateNowPlaying('', column);
+                };
+                audio.onended = () => {
+                    btn.classList.remove('playing');
+                    stopProgressBar();
+                    updateNowPlaying('', column);
+                    if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
+                        playAudio(file, btn, column);
+                    }
+                };
+                currentAudio = audio;
+                window.currentAudio = audio; // Aggiorna anche la versione globale
+                currentBtn = btn;
+                currentColumn = column;
+                if ((column === 'left' && loopMode.left) || (column === 'right' && loopMode.right)) {
+                    audio.loop = true;
+                } else {
+                    audio.loop = false;
+                }
+                updateNowPlaying(btn.textContent, column);
+                showProgressBar(btn.textContent, audio);
+                fadeIn(audio, btn);
+            }
+
+            function updateNowPlaying(title, column) {
+                nowPlayingLeft.textContent = column === 'left' ? (title ? 'In riproduzione: ' + title : '') : '';
+                nowPlayingRight.textContent = column === 'right' ? (title ? 'In riproduzione: ' + title : '') : '';
+            }
+
+            function showProgressBar(title, audio) {
+                playerSticky.style.display = 'flex';
+                playerTitle.textContent = title;
+                playerMeta.textContent = currentColumn === 'left' ? 'MIDI MP3 CARTOON' : 'CARTONI AUDIO';
+                progressBar.value = 0;
+                progressBar.max = 100;
+                progressBar.title = '0:00 / 0:00';
+                updateProgressBar(audio);
+                if (progressUpdater) clearInterval(progressUpdater);
+                progressUpdater = setInterval(() => updateProgressBar(audio), 300);
+                progressBar.oninput = function() {
+                    if (audio.duration) {
+                        audio.currentTime = (progressBar.value / 100) * audio.duration;
+                    }
+                };
+                playerPause.onclick = function() {
+                    if (audio.paused) {
+                        audio.play();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/><rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/></svg>';
+                    } else {
+                        audio.pause();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="6,4 14,10 6,16" fill="currentColor"/></svg>';
+                    }
+                };
+                playerStop.onclick = function() {
+                    if (fadeInterval) clearInterval(fadeInterval);
+                    fadeOut(audio, currentRow, () => {
+                        stopPlayer();
+                        updateNowPlaying('', currentColumn);
+                        currentAudio = null;
+                        currentRow = null;
+                    });
+                };
+            }
+            function stopProgressBar() {
+                playerSticky.style.display = 'flex';
+                playerTitle.textContent = '';
+                playerMeta.textContent = '';
+                progressBar.value = 0;
+                progressBar.title = '0:00 / 0:00';
+                if (progressUpdater) clearInterval(progressUpdater);
+                progressUpdater = null;
+            }
+            function updateProgressBar(audio) {
+                if (!audio.duration) return;
+                progressBar.value = (audio.currentTime / audio.duration) * 100;
+                progressBar.title = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+            }
+            function formatTime(sec) {
+                sec = Math.floor(sec);
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return m + ':' + (s < 10 ? '0' : '') + s;
+            }
+
+            // Barra di ricerca
+            document.getElementById('search-left').addEventListener('input', function() {
+                createButtons(leftFiles, leftTbody, 'left', this.value);
+            });
+            document.getElementById('search-right').addEventListener('input', function() {
+                createButtons(rightFiles, rightTbody, 'right', this.value);
+            });
+
+            // Shuffle
+            document.getElementById('shuffle-left').addEventListener('click', function() {
+                if (leftFiles.length > 0) {
+                    const idx = Math.floor(Math.random() * leftFiles.length);
+                    const rows = leftTbody.querySelectorAll('tr');
+                    if (rows[idx]) rows[idx].click();
+                }
+            });
+            document.getElementById('shuffle-right').addEventListener('click', function() {
+                if (rightFiles.length > 0) {
+                    const idx = Math.floor(Math.random() * rightFiles.length);
+                    const rows = rightTbody.querySelectorAll('tr');
+                    if (rows[idx]) rows[idx].click();
+                }
+            });
+
+            // Loop
+            let loopMode = { left: false, right: false };
+            document.getElementById('loop-left').addEventListener('click', function() {
+                loopMode.left = !loopMode.left;
+                this.classList.toggle('active', loopMode.left);
+                if (currentAudio && currentColumn === 'left') currentAudio.loop = loopMode.left;
+            });
+            document.getElementById('loop-right').addEventListener('click', function() {
+                loopMode.right = !loopMode.right;
+                this.classList.toggle('active', loopMode.right);
+                if (currentAudio && currentColumn === 'right') currentAudio.loop = loopMode.right;
+            });
+
+            // Caricamento file
+            loadLeftBtn.addEventListener('click', () => {
+                selectAudioFiles(files => {
+                    leftFiles = files;
+                    createButtons(leftFiles, leftTbody, 'left', document.getElementById('search-left').value);
+                });
+            });
+            loadRightBtn.addEventListener('click', () => {
+                selectAudioFiles(files => {
+                    rightFiles = files;
+                    createButtons(rightFiles, rightTbody, 'right', document.getElementById('search-right').value);
+                });
+            });
+
+            // SHORTCUTS
+            document.addEventListener('keydown', function(e) {
+                // Se un input è attivo, ignora tranne invio
+                const active = document.activeElement;
+                if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                    if (e.key === 'Enter') {
+                        // Play primo brano filtrato nella colonna attiva
+                        if (active.id === 'search-left') {
+                            const rows = leftTbody.querySelectorAll('tr');
+                            if (rows[0]) rows[0].click();
+                        } else if (active.id === 'search-right') {
+                            const rows = rightTbody.querySelectorAll('tr');
+                            if (rows[0]) rows[0].click();
+                        }
+                    }
+                    return;
+                }
+                if (!currentAudio) return;
+                if (e.key === ' ') { // spazio play/pausa
+                    e.preventDefault();
+                    if (currentAudio.paused) {
+                        currentAudio.play();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/><rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/></svg>';
+                    } else {
+                        currentAudio.pause();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="6,4 14,10 6,16" fill="currentColor"/></svg>';
+                    }
+                } else if (e.key === 'ArrowRight') { // avanti 5s
+                    currentAudio.currentTime = Math.min(currentAudio.currentTime + 5, currentAudio.duration || 0);
+                } else if (e.key === 'ArrowLeft') { // indietro 5s
+                    currentAudio.currentTime = Math.max(currentAudio.currentTime - 5, 0);
+                } else if (e.key === 'ArrowUp') { // volume su
+                    masterVolume = Math.min(masterVolume + 0.1, 1);
+                    volumeSlider.value = masterVolume;
+                    updateAllVolumes();
+                } else if (e.key === 'ArrowDown') { // volume giù
+                    masterVolume = Math.max(masterVolume - 0.1, 0);
+                    volumeSlider.value = masterVolume;
+                    updateAllVolumes();
+                } else if (e.key === 'Escape') { // stop
+                    if (fadeInterval) clearInterval(fadeInterval);
+                    fadeOut(currentAudio, currentRow, () => {
+                        stopPlayer();
+                        updateNowPlaying('', currentColumn);
+                        currentAudio = null;
+                        currentRow = null;
+                    });
+                }
+            });
+
+            // Gestione tema
+            const themeSelect = document.getElementById('theme-select');
+            function setTheme(theme) {
+                document.body.classList.remove('theme-light', 'theme-colorful');
+                if (theme === 'light') document.body.classList.add('theme-light');
+                if (theme === 'colorful') document.body.classList.add('theme-colorful');
+                sessionStorage.setItem('theme', theme);
+            }
+            themeSelect.addEventListener('change', e => setTheme(e.target.value));
+            // Applica tema salvato
+            setTheme(sessionStorage.getItem('theme') || 'dark');
+
+            // Volume controls click
+            document.getElementById('vol-mute').onclick = function() {
+                masterVolume = 0;
+                volumeSlider.value = 0;
+                updateAllVolumes();
+            };
+            document.getElementById('vol-half').onclick = function() {
+                masterVolume = 0.5;
+                volumeSlider.value = 0.5;
+                updateAllVolumes();
+            };
+            document.getElementById('vol-max').onclick = function() {
+                masterVolume = 1;
+                volumeSlider.value = 1;
+                updateAllVolumes();
+            };
+
+            // Player sticky: aggiorno i controlli
+            function updatePlayer(title, file, audio) {
+                // Mostro il player
+                playerSticky.style.display = 'flex';
+                
+                // Aggiorno titolo e meta
+                playerTitle.textContent = title;
+                playerMeta.textContent = currentColumn === 'left' ? 'MIDI MP3 CARTOON' : 'CARTONI AUDIO';
+                
+                // Gestisco progress bar 
+                if (progressUpdater) clearInterval(progressUpdater);
+                progressUpdater = setInterval(() => {
+                    if (!audio.duration) return;
+                    progressBar.value = (audio.currentTime / audio.duration) * 100;
+                    progressBar.title = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+                }, 300);
+                
+                // Click sul progress bar
+                progressBar.oninput = function() {
+                    if (audio.duration) {
+                        audio.currentTime = (progressBar.value / 100) * audio.duration;
+                    }
+                };
+                
+                // Click su pausa/play
+                playerPause.onclick = function() {
+                    if (audio.paused) {
+                        audio.play();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/><rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/></svg>';
+                    } else {
+                        audio.pause();
+                        playerPause.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="6,4 14,10 6,16" fill="currentColor"/></svg>';
+                    }
+                };
+                
+                // Click su stop
+                playerStop.onclick = function() {
+                    if (fadeInterval) clearInterval(fadeInterval);
+                    fadeOut(audio, currentRow, () => {
+                        stopPlayer();
+                        updateNowPlaying('', currentColumn);
+                        currentAudio = null;
+                        currentRow = null;
+                    });
+                };
+            }
+            
+            function stopPlayer() {
+                playerTitle.textContent = '';
+                playerMeta.textContent = '';
+                progressBar.value = 0;
+                
+                if (progressUpdater) {
+                    clearInterval(progressUpdater);
+                    progressUpdater = null;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

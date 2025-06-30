@@ -1,0 +1,313 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    --buzz-primary: 358 83% 58%;
+    --buzz-winner: 142 72% 50%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.glass-morphism {
+  @apply bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg;
+}
+
+.neo-morphism {
+  @apply bg-white/80 shadow-lg;
+  box-shadow: 12px 12px 24px rgba(0, 0, 0, 0.1),
+              -12px -12px 24px rgba(255, 255, 255, 0.5);
+}
+
+.buzz-button {
+  @apply relative flex items-center justify-center;
+  background: radial-gradient(circle at center, #ff3a5e, #e61e41);
+  box-shadow: 0 0 20px rgba(255, 58, 94, 0.6),
+              0 0 60px rgba(255, 58, 94, 0.4),
+              inset 0 0 15px rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.buzz-button::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+  transform: rotate(30deg);
+  pointer-events: none;
+  z-index: 0;
+  animation: rotate 8s linear infinite;
+}
+
+.buzz-button:active {
+  @apply scale-95;
+  box-shadow: 0 0 10px rgba(255, 58, 94, 0.3),
+              0 0 30px rgba(255, 58, 94, 0.2),
+              inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.shadow-text {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.buzz-winner {
+  background: radial-gradient(circle at center, #34d399, #10b981);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.6),
+              0 0 60px rgba(16, 185, 129, 0.4),
+              inset 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.buzz-button.disabled {
+  background: radial-gradient(circle at center, #6b7280, #4b5563) !important;
+  box-shadow: 0 0 10px rgba(107, 114, 128, 0.4),
+              0 0 20px rgba(107, 114, 128, 0.2),
+              inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
+  filter: grayscale(1);
+  cursor: not-allowed !important;
+}
+
+.buzz-button.disabled::before {
+  animation: none !important;
+  opacity: 0.3;
+}
+
+.buzz-button.disabled span {
+  color: #9ca3af !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
+}
+
+.code-entry {
+  @apply bg-white/20 backdrop-blur-md border border-white/30 p-6 rounded-2xl shadow-lg;
+}
+
+.code-digit {
+  @apply w-14 h-20 text-3xl font-bold text-center bg-white/60 backdrop-blur-md border border-white/40 rounded-xl shadow-md transition-all duration-200;
+}
+
+.code-digit:focus {
+  @apply outline-none ring-2 ring-primary/50 bg-white;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 58, 94, 0.7), 
+                0 0 20px rgba(255, 58, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 58, 94, 0.9), 
+                0 0 30px rgba(255, 58, 94, 0.7);
+  }
+}
+
+/* Stili per la musica di background */
+.background-music-slider {
+  @apply appearance-none bg-transparent cursor-pointer;
+  background: linear-gradient(to right, 
+    rgba(168, 85, 247, 0.6) 0%, 
+    rgba(168, 85, 247, 0.6) var(--value, 0%), 
+    rgba(255, 255, 255, 0.2) var(--value, 0%), 
+    rgba(255, 255, 255, 0.2) 100%);
+  border-radius: 6px;
+  height: 8px;
+}
+
+.background-music-slider::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 bg-purple-400 rounded-full cursor-pointer;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  transition: all 0.2s ease;
+}
+
+.background-music-slider::-webkit-slider-thumb:hover {
+  @apply bg-purple-300;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.8);
+  transform: scale(1.1);
+}
+
+.background-music-slider::-moz-range-thumb {
+  @apply w-4 h-4 bg-purple-400 rounded-full cursor-pointer border-0;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  transition: all 0.2s ease;
+}
+
+.background-music-slider::-moz-range-thumb:hover {
+  @apply bg-purple-300;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.8);
+  transform: scale(1.1);
+}
+
+/* Animazione per l'indicatore di stato */
+.bg-music-status-indicator {
+  transition: all 0.3s ease;
+}
+
+.bg-music-playing {
+  @apply bg-green-400;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+.bg-music-paused {
+  @apply bg-yellow-400;
+  animation: pulse-yellow 2s ease-in-out infinite;
+}
+
+.bg-music-stopped {
+  @apply bg-gray-400;
+}
+
+@keyframes pulse-green {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes pulse-yellow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 8px rgba(251, 191, 36, 0);
+  }
+}
+
+/* Animazioni personalizzate per il countdown */
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-buzz {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+.animate-pulse-buzz {
+  animation: pulse-buzz 1s ease-in-out infinite;
+}
+
+.shadow-text {
+  text-shadow: 
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 30px currentColor;
+}
+
+/* Migliora l'overlay del countdown */
+.countdown-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
